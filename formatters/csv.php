@@ -35,72 +35,72 @@ $regex_split_on_delim_not_between_quotes="/(?<!\\\\)". $delim ."(?=(?:[^\"]*([\"
 $regex_escaped_delim="/\\\\". $delim ."/";
 
 print "<table><tbody>\n";
-foreach ($array_csv_lines= preg_split("/[\n]/", $text) as $csv_n => $csv_line) 
+foreach ($array_csv_lines= preg_split("/[\n]/", $text) as $row => $csv_line) 
 {
 	if (preg_match("/^#|^\s*$/",$csv_line)) 
 	{
 		if ( preg_match('/^#!\s*(t[hrd])\s*{/', $csv_line, $a_t) )
 			if ( preg_match_all('/background-color-?([\w]*)\s*:\s*(#[0-9a-fA-F]{3,6})\s*;/', $csv_line, $a_bkcolors) )
-				foreach ($a_bkcolors[0] as $n => $bkcolors) 
+				foreach ($a_bkcolors[0] as $i => $bkcolors) 
 				{
-					$style[ $a_t[1] ][ $a_bkcolors[1][$n] ]= "background-color:". $a_bkcolors[2][$n] ."; ";
-					// print "style[". $a_t[1] ."][". $a_bkcolors[1][$n] ."]=". $style[ $a_t[1] ][ $a_bkcolors[1][$n] ] ."<br/>";
+					$style[ $a_t[1] ][ $a_bkcolors[1][$i] ]= "background-color:". $a_bkcolors[2][$i] ."; ";
+					// print "style[". $a_t[1] ."][". $a_bkcolors[1][$i] ."]=". $style[ $a_t[1] ][ $a_bkcolors[1][$i] ] ."<br/>";
 				}
 
 		$comments++;
 		continue;
 	}
 
-	print (($csv_n+$comments)%2) ? "<tr style=\"". $style["tr"]["even"] ."\">" : "<tr style=\"". $style["tr"]["odd"] ."\">";
+	print (($row+$comments)%2) ? "<tr style=\"". $style["tr"]["even"] ."\">" : "<tr style=\"". $style["tr"]["odd"] ."\">";
 
-	foreach (preg_split($regex_split_on_delim_not_between_quotes, $csv_line) as $csv_nn => $csv_cell)
+	foreach (preg_split($regex_split_on_delim_not_between_quotes, $csv_line) as $col => $csv_cell)
 	{
-		if ($csv_n == $comments) {
-			$style[$csv_nn]= "padding: 1px 10px 1px 10px; ";
-//			$total[$csv_nn]= 0;
+		if ($row == $comments) {
+			$style[$col]= "padding: 1px 10px 1px 10px; ";
+//			$total[$col]= 0;
 		}
 
 		if (preg_match("/^\"?\s*==(.*)==\s*\"?$/", $csv_cell, $header)) 
 		{
-			$title[$csv_nn]= $header[1];
+			$title[$col]= $header[1];
 
-			if (preg_match("/([\/\\\\|])(.*)\\1$/", $title[$csv_nn], $align)) 
+			if (preg_match("/([\/\\\\|])(.*)\\1$/", $title[$col], $align)) 
 			{
 				switch ($align[1]) {
-					case "/" :	$style[$csv_nn].= "text-align:right; ";	break;
-					case "\\" :	$style[$csv_nn].= "text-align:left; ";	break;
-					case "|" :	$style[$csv_nn].= "text-align:center; "; break;
+					case "/" :	$style[$col].= "text-align:right; ";	break;
+					case "\\" :	$style[$col].= "text-align:left; ";		break;
+					case "|" :	$style[$col].= "text-align:center; ";	break;
 				}
 
-				$title[$csv_nn]= $align[2];
+				$title[$col]= $align[2];
 			}
 /*
-			if (!strcmp($title[$csv_nn], "++TOTAL++"))
+			if (!strcmp($title[$col], "++TOTAL++"))
 			{
-				if ($total[$csv_nn] > 0)
-					print "<th style=\"". $style["th"][""] . $style[$csv_nn] ."\">". sprintf("%0.2f", $total_i[$csv_nn] + ($total_d[$csv_nn]/100)) ."</th>";
+				if ($total[$col] > 0)
+					print "<th style=\"". $style["th"][""] . $style[$col] ."\">". sprintf("%0.2f", $total_i[$col] + ($total_d[$col]/100)) ."</th>";
 				else
-					print "<th style=\"". $style["th"]["error"] . $style[$csv_nn] ."\">ERROR!</th>";
+					print "<th style=\"". $style["th"]["error"] . $style[$col] ."\">ERROR!</th>";
 
 				continue;
 			}
 
-			if (preg_match("/^(.*)([+#])\\2$/", $title[$csv_nn], $accum)) 
+			if (preg_match("/^(.*)([+#])\\2$/", $title[$col], $accum)) 
 			{
 				switch ($accum[2]) {
 					case "#" :
 						$DEBUG= 1; // drop through ...
 					case "+" :
-						$total[$csv_nn]= 1;
-						$total_i[$csv_nn]= 0;
-						$total_d[$csv_nn]= 0;
+						$total[$col]= 1;
+						$total_i[$col]= 0;
+						$total_d[$col]= 0;
 						break;
 				}
 
-				$title[$csv_nn]= $accum[1];
+				$title[$col]= $accum[1];
 			}
 */
-			print "<th style=\"". $style["th"][""] . $style[$csv_nn] ."\">". $this->htmlspecialchars_ent($title[$csv_nn]) ."</th>";
+			print "<th id=\"row".$row."col".$col."\" style=\"". $style["th"][""] . $style[$col] ."\">". $this->htmlspecialchars_ent($title[$col]) ."</th>";
 			continue;
 		}
 
@@ -108,11 +108,11 @@ foreach ($array_csv_lines= preg_split("/[\n]/", $text) as $csv_n => $csv_line)
 		//
 		if (preg_match("/^\s*$/",$csv_cell)) 
 		{
-			print "<td style=\"". $style[$csv_nn] ."\">&nbsp;</td>";
+			print "<td style=\"". $style[$col] ."\">&nbsp;</td>";
 			continue;
 		}
 /*		
-		elseif ($total[$csv_nn] && preg_match("/^\"?([\s\d+\-,.]+)\"?$/", $csv_cell, $matches))
+		elseif ($total[$col] && preg_match("/^\"?([\s\d+\-,.]+)\"?$/", $csv_cell, $matches))
 		{
 			$matches_nows= preg_replace('/\s+/', '', $matches[1]);
 
@@ -130,19 +130,19 @@ foreach ($array_csv_lines= preg_split("/[\n]/", $text) as $csv_n => $csv_line)
 			}
 			else
 			{
-				$total[$csv_nn]= -1;
-				print "<td style=\"". $style[$csv_nn] ."\">".$this->htmlspecialchars_ent($matches_nows)."</td>";
+				$total[$col]= -1;
+				print "<td style=\"". $style[$col] ."\">".$this->htmlspecialchars_ent($matches_nows)."</td>";
 				continue;
 			}
 
-			$total_i[$csv_nn]+= intval($i);
-			$total_d[$csv_nn]+= intval($d);
+			$total_i[$col]+= intval($i);
+			$total_d[$col]+= intval($d);
 			$nr= $i + ($d/100);
 
 			if ($DEBUG == 1)
-				print "<td style=\"". $style[$csv_nn] ."\">". $csv_cell ."(". $format .")= " . sprintf("%.2f", $nr) ."+= ". $total_i[$csv_nn] ." ". $total_d[$csv_nn] ."</td>";
+				print "<td style=\"". $style[$col] ."\">". $csv_cell ."(". $format .")= " . sprintf("%.2f", $nr) ."+= ". $total_i[$col] ." ". $total_d[$col] ."</td>";
 			else
-				print "<td title=\"". $csv_cell ."(". $format .")\" style=\"". (($nr <= 0) ? "background-color:#d30; " : "" ) . $style[$csv_nn] ."\">". sprintf("%.2f", $nr) ."</td>";
+				print "<td title=\"". $csv_cell ."(". $format .")\" style=\"". (($nr <= 0) ? "background-color:#d30; " : "" ) . $style[$col] ."\">". sprintf("%.2f", $nr) ."</td>";
 
 			continue;
 		}
@@ -153,7 +153,7 @@ foreach ($array_csv_lines= preg_split("/[\n]/", $text) as $csv_n => $csv_line)
 		{
 			if ($matches[1] == "\"")
 			{
-				$style[$csv_nn]= "white-space:pre; ". $style[$csv_nn];
+				$style[$col]= "white-space:pre; ". $style[$col];
 				$cell= $matches[2];
 			}
 			else
@@ -165,9 +165,9 @@ foreach ($array_csv_lines= preg_split("/[\n]/", $text) as $csv_n => $csv_line)
 			{
 				$linked= $cell;
 				
-				foreach ($all_links[1] as $n => $camel_link) 
+				foreach ($all_links[1] as $i => $camel_link) 
 					$linked = preg_replace("/\[\[". $camel_link ."\]\]/", $this->Link($camel_link), $linked);
-				print "<td style=\"". $style[$csv_nn] ."\">". $linked ."</td>"; // no htmlspecialchars_ent()
+				print "<td style=\"". $style[$col] ."\">". $linked ."</td>"; // no htmlspecialchars_ent()
 			}		
 			// test for [[url|label]]
 			//
@@ -175,27 +175,26 @@ foreach ($array_csv_lines= preg_split("/[\n]/", $text) as $csv_n => $csv_line)
 			{
 				$linked= $cell;
 				
-				foreach ($all_links[1] as $n => $url_link) 
+				foreach ($all_links[1] as $i => $url_link) 
 					if(preg_match("/^\s*(.*?)\s*\|\s*(.*?)\s*$/su", $url_link, $matches)) {
 						$url = $matches[1];
 						$text = $matches[2];
 						$linked = $this->Link($url, "", $text, TRUE, TRUE, '', '', FALSE);	
 					}
-				print "<td style=\"". $style[$csv_nn] ."\">". $linked ."</td>"; // no htmlspecialchars_ent()
+				print "<td style=\"". $style[$col] ."\">". $linked ."</td>"; // no htmlspecialchars_ent()
 			}		
 
 			else
-				print "<td style=\"". $style[$csv_nn] ."\">". $this->htmlspecialchars_ent($cell) ."</td>";
+				print "<td style=\"". $style[$col] ."\">". $this->htmlspecialchars_ent($cell) ."</td>";
 
 			continue;
 		}
 
-		print "<td style=\"". $style["td"]["error"] . $style[$csv_nn] ."\">ERROR!</td>"; // $this->htmlspecialchars_ent($csv_cell)
+		print "<td style=\"". $style["td"]["error"] . $style[$col] ."\">ERROR!</td>"; // $this->htmlspecialchars_ent($csv_cell)
 
 	}
 	print "</tr>\n";
 
 }
 print "</tbody></table>\n";
-
 ?>
