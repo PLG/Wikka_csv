@@ -66,7 +66,7 @@ foreach ($array_csv_lines= preg_split("/[\n]/", $text) as $row => $csv_line)
 	{
 		$id= $rndID."-r".$row.":c".$col;
 
-		if ($row == $comments)
+		if ( !isset($style[$col]) )
 			$style[$col]= "padding: 1px 10px 1px 10px; ";
 
 		//-------------------------------------------------------------------------------------------------------------
