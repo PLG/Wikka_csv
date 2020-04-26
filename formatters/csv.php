@@ -8,18 +8,27 @@
 
 //$DEBUG= 0;
 
+ini_set('display_errors', 'On');
+error_reporting(E_ALL | E_STRICT);
+
+if (!function_exists('rndw')) {
+	function rndw($length=4) {
+		return substr(str_shuffle("qwertyuiopasdfghjklzxcvbnm"),0,$length);
+	}
+}
+
 if (!defined('PATTERN_ARGUMENT')) define('PATTERN_ARGUMENT', '(?:;([^;\)\x01-\x1f\*\?\"<>\|]*))?');
 
-//print "PLG[".$format_option."]<br/>";
 if (preg_match('/^'.PATTERN_ARGUMENT.PATTERN_ARGUMENT.PATTERN_ARGUMENT.'$/su', ';'.$format_option, $args))
 	list(, $arg1, $arg2, $arg3) = $args;
-	//var_dump($args);
 
 $delim= ($arg1 == "semi-colon") ? ";" : ",";
 
 $comments= 0;
+$rndID= rndw();
 
 $style["th"][""]= "background-color:#ccc; ";
+$style["th"]["error"]= "background-color:#d30; ";
 $style["tr"]["even"]= "background-color:#ffe; ";
 $style["tr"]["odd"]= "background-color:#eee; ";
 $style["td"]["error"]= "background-color:#d30; ";
@@ -31,8 +40,8 @@ $style["td"]["error"]= "background-color:#d30; ";
 // asserts what precedes the ; is not a backslash \\\\, doesn't account for \\; (escaped backslash semicolon)
 // OMFG! https://stackoverflow.com/questions/40479546/how-to-split-on-white-spaces-not-between-quotes
 //
-$regex_split_on_delim_not_between_quotes="/(?<!\\\\)". $delim ."(?=(?:[^\"]*([\"])[^\"]*\\1)*[^\"]*$)/";
-$regex_escaped_delim="/\\\\". $delim ."/";
+$regex_split_on_delim_not_between_quotes="(?<!\\\\)". $delim ."(?=(?:[^\"]*([\"])[^\"]*\\1)*[^\"]*$)";
+$regex_escaped_delim="\\\\". $delim ."";
 
 print "<table><tbody>\n";
 foreach ($array_csv_lines= preg_split("/[\n]/", $text) as $row => $csv_line) 
@@ -53,31 +62,34 @@ foreach ($array_csv_lines= preg_split("/[\n]/", $text) as $row => $csv_line)
 
 	print (($row+$comments)%2) ? "<tr style=\"". $style["tr"]["even"] ."\">" : "<tr style=\"". $style["tr"]["odd"] ."\">";
 
-	foreach (preg_split($regex_split_on_delim_not_between_quotes, $csv_line) as $col => $csv_cell)
+	foreach (preg_split("/". $regex_split_on_delim_not_between_quotes ."/", $csv_line) as $col => $cell)
 	{
-		if ($row == $comments) {
+		$id= $rndID."-r".$row.":c".$col;
+
+		if ($row == $comments)
 			$style[$col]= "padding: 1px 10px 1px 10px; ";
-//			$total[$col]= 0;
-		}
 
-		if (preg_match("/^\"?\s*==(.*)==\s*\"?$/", $csv_cell, $header)) 
+		//-------------------------------------------------------------------------------------------------------------
+		// header
+
+		if (preg_match("/^\"?\s*==(.*)==\s*\"?$/", $cell, $a_header)) 
 		{
-			$title[$col]= $header[1];
+			$title= $a_header[1];
 
-			if (preg_match("/([\/\\\\|])(.*)\\1$/", $title[$col], $align)) 
+			if (preg_match("/([\/\\\\|])(.*)\\1$/", $title, $a_align)) 
 			{
-				switch ($align[1]) {
+				switch ($a_align[1]) {
 					case "/" :	$style[$col].= "text-align:right; ";	break;
 					case "\\" :	$style[$col].= "text-align:left; ";		break;
 					case "|" :	$style[$col].= "text-align:center; ";	break;
 				}
 
-				$title[$col]= $align[2];
+				$title= $a_align[2];
 			}
 /*
-			if (!strcmp($title[$col], "++TOTAL++"))
+			if (!strcmp($title, "++TOTAL++"))
 			{
-				if ($total[$col] > 0)
+				if (isset($total_i[$col]))
 					print "<th style=\"". $style["th"][""] . $style[$col] ."\">". sprintf("%0.2f", $total_i[$col] + ($total_d[$col]/100)) ."</th>";
 				else
 					print "<th style=\"". $style["th"]["error"] . $style[$col] ."\">ERROR!</th>";
@@ -85,34 +97,36 @@ foreach ($array_csv_lines= preg_split("/[\n]/", $text) as $row => $csv_line)
 				continue;
 			}
 
-			if (preg_match("/^(.*)([+#])\\2$/", $title[$col], $accum)) 
+			if (preg_match("/^(.*)([+#])\\2$/", $title, $a_accum)) 
 			{
-				switch ($accum[2]) {
+				switch ($a_accum[2]) {
 					case "#" :
 						$DEBUG= 1; // drop through ...
 					case "+" :
-						$total[$col]= 1;
 						$total_i[$col]= 0;
 						$total_d[$col]= 0;
 						break;
 				}
 
-				$title[$col]= $accum[1];
+				$title= $a_accum[1];
 			}
 */
-			print "<th id=\"row".$row."col".$col."\" style=\"". $style["th"][""] . $style[$col] ."\">". $this->htmlspecialchars_ent($title[$col]) ."</th>";
+			print "<th id=\"". $id ."\" style=\"". $style["th"][""] . $style[$col] ."\">". $this->htmlspecialchars_ent($title) ."</th>";
 			continue;
 		}
 
-		// if a cell is blank, print &nbsp;
+		//-------------------------------------------------------------------------------------------------------------
+		// cell
+
+		// if blank, print &nbsp;
 		//
-		if (preg_match("/^\s*$/",$csv_cell)) 
+		if (preg_match("/^\s*$/",$cell)) 
 		{
-			print "<td style=\"". $style[$col] ."\">&nbsp;</td>";
+			print "<td id=\"". $id ."\" style=\"". $style[$col] ."\">&nbsp;</td>";
 			continue;
 		}
 /*		
-		elseif ($total[$col] && preg_match("/^\"?([\s\d+\-,.]+)\"?$/", $csv_cell, $matches))
+		elseif ($total[$col] && preg_match("/^\"?([\s\d+\-,.]+)\"?$/", $cell, $matches))
 		{
 			$matches_nows= preg_replace('/\s+/', '', $matches[1]);
 
@@ -140,57 +154,50 @@ foreach ($array_csv_lines= preg_split("/[\n]/", $text) as $row => $csv_line)
 			$nr= $i + ($d/100);
 
 			if ($DEBUG == 1)
-				print "<td style=\"". $style[$col] ."\">". $csv_cell ."(". $format .")= " . sprintf("%.2f", $nr) ."+= ". $total_i[$col] ." ". $total_d[$col] ."</td>";
+				print "<td style=\"". $style[$col] ."\">". $cell ."(". $format .")= " . sprintf("%.2f", $nr) ."+= ". $total_i[$col] ." ". $total_d[$col] ."</td>";
 			else
-				print "<td title=\"". $csv_cell ."(". $format .")\" style=\"". (($nr <= 0) ? "background-color:#d30; " : "" ) . $style[$col] ."\">". sprintf("%.2f", $nr) ."</td>";
+				print "<td title=\"". $cell ."(". $format .")\" style=\"". (($nr <= 0) ? "background-color:#d30; " : "" ) . $style[$col] ."\">". sprintf("%.2f", $nr) ."</td>";
 
 			continue;
 		}
 */		
 		// extract the cell out of it's quotes
 		//
-        elseif (preg_match("/^\s*(\"?)(.*?)\\1\s*$/", $csv_cell, $matches))
+        if (preg_match("/^\s*(\"?)(.*?)\\1\s*$/", $cell, $matches))
 		{
 			if ($matches[1] == "\"")
 			{
-				$style[$col]= "white-space:pre; ". $style[$col];
+				$style[$col].= "white-space:pre; ". $style[$col];
 				$cell= $matches[2];
 			}
 			else
-				$cell= preg_replace($regex_escaped_delim, $delim, $matches[2]);
-
-			// test for CamelLink
-			//
-			if (preg_match_all("/\[\[([[:alnum:]]+)\]\]/", $cell, $all_links))
-			{
-				$linked= $cell;
-				
-				foreach ($all_links[1] as $i => $camel_link) 
-					$linked = preg_replace("/\[\[". $camel_link ."\]\]/", $this->Link($camel_link), $linked);
-				print "<td style=\"". $style[$col] ."\">". $linked ."</td>"; // no htmlspecialchars_ent()
-			}		
-			// test for [[url|label]]
-			//
-			elseif (preg_match_all("/\[\[(.*?\|.*?)\]\]/", $cell, $all_links))
-			{
-				$linked= $cell;
-				
-				foreach ($all_links[1] as $i => $url_link) 
-					if(preg_match("/^\s*(.*?)\s*\|\s*(.*?)\s*$/su", $url_link, $matches)) {
-						$url = $matches[1];
-						$text = $matches[2];
-						$linked = $this->Link($url, "", $text, TRUE, TRUE, '', '', FALSE);	
-					}
-				print "<td style=\"". $style[$col] ."\">". $linked ."</td>"; // no htmlspecialchars_ent()
-			}		
-
-			else
-				print "<td style=\"". $style[$col] ."\">". $this->htmlspecialchars_ent($cell) ."</td>";
-
-			continue;
+				$cell= preg_replace("/". $regex_escaped_delim ."/", $delim, $matches[2]);
 		}
 
-		print "<td style=\"". $style["td"]["error"] . $style[$col] ."\">ERROR!</td>"; // $this->htmlspecialchars_ent($csv_cell)
+		// test for CamelLink
+		//
+		if (preg_match_all("/\[\[([[:alnum:]]+)\]\]/", $cell, $all_links))
+		{
+			foreach ($all_links[1] as $i => $camel_link) 
+				$cell = preg_replace("/\[\[". $camel_link ."\]\]/", $this->Link($camel_link), $cell);
+		}		
+		// test for [[url|label]]
+		//
+		elseif (preg_match_all("/\[\[(.*?\|.*?)\]\]/", $cell, $all_links))
+		{
+			foreach ($all_links[1] as $i => $url_link) 
+				if(preg_match("/^\s*(.*?)\s*\|\s*(.*?)\s*$/su", $url_link, $matches)) {
+					$url = $matches[1];
+					$text = $matches[2];
+					$cell = $this->Link($url, "", $text, TRUE, TRUE, '', '', FALSE);	
+				}
+		}		
+		else
+			$cell= $this->htmlspecialchars_ent($cell);
+
+		print "<td id=\"". $id ."\" style=\"". $style[$col] ."\">". $cell ."</td>";
+
+		//print "<td id=\"". $id ."\" style=\"". $style["td"]["error"] . $style[$col] ."\">ERROR!</td>"; // $this->htmlspecialchars_ent($cell)
 
 	}
 	print "</tr>\n";
