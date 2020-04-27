@@ -16,6 +16,8 @@ if (!function_exists('rndw')) {
 
 if (!defined('PATTERN_ARGUMENT'))		define('PATTERN_ARGUMENT', '(?:;([^;\)\x01-\x1f\*\?\"<>\|]*))?');
 if (!defined('PATTERN_CSS_DEFINITION'))	define('PATTERN_CSS_DEFINITION', '#!\s*((?:t[hrd])(?:\.\w*)?)\s*(\{.*\})');
+if (!defined('PATTERN_CURRENCY_US'))	define('PATTERN_CURRENCY_US', '([+-]?)(\d{1,3}(?:\,\d{3})*|(?:\d*))(?:\.(\d{2}))?');
+//if (!defined('PATTERN_CURRENCY_SE'))	define('PATTERN_CURRENCY_SE', '([+-]?)(\d{1,3}(?:\.\d{3})*|(?:\d*))(?:\,(\d{2}))?');
 
 if (preg_match('/^'.PATTERN_ARGUMENT.PATTERN_ARGUMENT.PATTERN_ARGUMENT.'$/su', ';'.$format_option, $args))
 	list(, $arg1, $arg2, $arg3) = $args;
@@ -44,6 +46,7 @@ $css["th, td"]= "{ padding: 1px 10px 1px 10px; }";
 $css["th"]= "{ background-color:#ccc; }"; 
 $css["tr.even"]= "{ background-color:#ffe; }";
 $css["tr.odd"]= "{ background-color:#eee; }";
+$css["td.red"]= "{ background-color:#f00; }";
 
 foreach ($array_csv_lines as $row => $csv_line) 
 {
@@ -147,27 +150,22 @@ foreach ($array_csv_lines as $row => $csv_line)
 			$title= $cell;
 			$cell= preg_replace('/\s+/', '', $matches[1]);
 
-			$format= "ERR";
-			$nr= "ERROR!";
-
-			if (preg_match("/^([+-]?)(\d{1,3}(\,\d{3})*|(\d+))(\.(\d{2}))?$/", $cell, $a_usa))
+			if (preg_match('/^'.PATTERN_CURRENCY_US.'$/', $cell, $a_currency))
 			{
 				$format= "US";
-				$i= $a_usa[1] . preg_replace('/,/', '', $a_usa[2]);
-				$d= $a_usa[1] . $a_usa[5];
-				$nr= intval($i) + (intval($d)/100);
+
+				$cell= $a_currency[1] . $a_currency[2];
+				if ( isset($a_currency[3]) )
+					$cell.= ".". $a_currency[3];
+
+				$nr= floatval( preg_replace('/,/', '', $cell) );
 				$total_col[$col]+= $nr;
 
-				$cell= sprintf("%0.2f", $nr);
-			}
-			else 
-			{
-				//$cell_style.= $css["td"]["error"];
-				$cell= "ERROR!";
+				print "<td class=\"". (($nr <= 0) ? "red" : "" ) ." row".$row ." col".$col ."\" title=\"". $title ."(". $format .")\" >". sprintf("%0.2f", $nr) ."</td>";
+				continue;
 			}
 
-			print "<td class=\"row". $row ." col". $col ."\" title=\"". $title ."(". $format .")\" style=\"". (($nr <= 0) ? "background-color:#d30; " : "" ) . "\">". $cell ."</td>";
-
+			print "<td class=\"red row".$row ." col".$col ."\" title=\"". $title ."(ERR)\" >ERROR!</td>";
 			continue;
 		}
 			/*
@@ -198,6 +196,8 @@ foreach ($array_csv_lines as $row => $csv_line)
 			continue;
 		}
 			*/
+
+		$cell_style="";
 
 		// extract the cell out of it's quotes
 		//
@@ -233,9 +233,8 @@ foreach ($array_csv_lines as $row => $csv_line)
 		else
 			$cell= $this->htmlspecialchars_ent($cell);
 
-		print "<td class=\"row". $row ." col". $col ."\" >". $cell ."</td>";
-
-		//print "<td id=\"". $id ."\" >ERROR!</td>"; // $this->htmlspecialchars_ent($cell)
+		print "<td class=\"row". $row ." col". $col ."\" style=\"". $cell_style ."\" >". $cell ."</td>";
+		//print '<td class="row'. $row .' col'. $col .'" style="'. $cell_style .'" >'. $cell .'</td>';
 
 	}
 	print "</tr>\n";
