@@ -3,9 +3,6 @@
 // by OnegWR, May 2005, license GPL http://wikkawiki.org/OnegWRCsv
 // by ThePLG, Apr 2020, license GPL http://wikkawiki.org/PLG-Csv
 
-// Copy the code below into a file named formatters/csv.php
-// And give it the same file permissions as the other files in that directory.
-
 //$DEBUG= 0;
 
 ini_set('display_errors', 'On');
@@ -17,21 +14,13 @@ if (!function_exists('rndw')) {
 	}
 }
 
-if (!defined('PATTERN_ARGUMENT')) define('PATTERN_ARGUMENT', '(?:;([^;\)\x01-\x1f\*\?\"<>\|]*))?');
+if (!defined('PATTERN_ARGUMENT'))		define('PATTERN_ARGUMENT', '(?:;([^;\)\x01-\x1f\*\?\"<>\|]*))?');
+if (!defined('PATTERN_CSS_DEFINITION'))	define('PATTERN_CSS_DEFINITION', '#!\s*((?:t[hrd])(?:\.\w*)?)\s*(\{.*\})');
 
 if (preg_match('/^'.PATTERN_ARGUMENT.PATTERN_ARGUMENT.PATTERN_ARGUMENT.'$/su', ';'.$format_option, $args))
 	list(, $arg1, $arg2, $arg3) = $args;
 
 $delim= ($arg1 == "semi-colon") ? ";" : ",";
-
-$comments= 0;
-$rndID= rndw();
-
-$style["th"][""]= "background-color:#ccc; ";
-$style["th"]["error"]= "background-color:#d30; ";
-$style["tr"]["even"]= "background-color:#ffe; ";
-$style["tr"]["odd"]= "background-color:#eee; ";
-$style["td"]["error"]= "background-color:#d30; ";
 
 // https://www.phpliveregex.com
 // https://www.regular-expressions.info/quickstart.html
@@ -43,32 +32,58 @@ $style["td"]["error"]= "background-color:#d30; ";
 $regex_split_on_delim_not_between_quotes="(?<!\\\\)". $delim ."(?=(?:[^\"]*([\"])[^\"]*\\1)*[^\"]*$)";
 $regex_escaped_delim="\\\\". $delim ."";
 
-print "<table><tbody>\n";
-foreach ($array_csv_lines= preg_split("/[\n]/", $text) as $row => $csv_line) 
-{
-	if (preg_match("/^#|^\s*$/",$csv_line)) 
-	{
-		if ( preg_match('/^#!\s*(t[hrd])\s*{/', $csv_line, $a_t) )
-			if ( preg_match_all('/background-color-?([\w]*)\s*:\s*(#[0-9a-fA-F]{3,6})\s*;/', $csv_line, $a_bkcolors) )
-				foreach ($a_bkcolors[0] as $i => $bkcolors) 
-				{
-					$style[ $a_t[1] ][ $a_bkcolors[1][$i] ]= "background-color:". $a_bkcolors[2][$i] ."; ";
-					// print "style[". $a_t[1] ."][". $a_bkcolors[1][$i] ."]=". $style[ $a_t[1] ][ $a_bkcolors[1][$i] ] ."<br/>";
-				}
+//---------------------------------------------------------------------------------------------------------------------
 
+$array_csv_lines= preg_split("/[\n]/", $text);
+
+$table_id= rndw(23);
+
+// https://stackoverflow.com/questions/1028248/how-to-combine-class-and-id-in-css-selector
+// table, th, td { border: 1px solid black; border-collapse: collapse; }
+$css["th, td"]= "{ padding: 1px 10px 1px 10px; }";
+$css["th"]= "{ background-color:#ccc; }"; 
+$css["tr.even"]= "{ background-color:#ffe; }";
+$css["tr.odd"]= "{ background-color:#eee; }";
+
+foreach ($array_csv_lines as $row => $csv_line) 
+{
+	if ( preg_match('/^'.PATTERN_CSS_DEFINITION.'$/', $csv_line, $a_css) )
+	{
+		$css[ $a_css[1] ]= $a_css[2];
+		//print "#". $table_id ." ". $a_css[1] ." ". $a_css[2] ."\n";
+
+//		if ( preg_match_all('/background-color-?([\w]*)\s*:\s*(#[0-9a-fA-F]{3,6})\s*;/', $csv_line, $a_bkcolors) )
+//			foreach ($a_bkcolors[0] as $i => $bkcolors) {
+//				$css[ $a_t[1] ][ $a_bkcolors[1][$i] ]= "background-color:". $a_bkcolors[2][$i] ."; ";
+//				print "css[". $a_t[1] ."][". $a_bkcolors[1][$i] ."]=". $css[ $a_t[1] ][ $a_bkcolors[1][$i] ] ."<br/>";
+//			}
+
+		unset($array_csv_lines[$row]);
+		continue;
+	}
+
+	break;
+}
+
+print "<style>\n";
+foreach ($css as $key => $rule)
+	print "#". $table_id ." ". $key ." ". $rule ."\n";
+print "</style>\n";
+
+$comments= 0;
+
+print "<table id=\"". $table_id ."\">\n";
+foreach ($array_csv_lines as $row => $csv_line) 
+{
+	if (preg_match("/^#|^\s*$/",$csv_line)) {
 		$comments++;
 		continue;
 	}
 
-	print (($row+$comments)%2) ? "<tr style=\"". $style["tr"]["even"] ."\">" : "<tr style=\"". $style["tr"]["odd"] ."\">";
+	print (($row+$comments)%2) ? "<tr class=\"even\" style=\"\" >" : "<tr class=\"odd\" style=\"\" >";
 
 	foreach (preg_split("/". $regex_split_on_delim_not_between_quotes ."/", $csv_line) as $col => $cell)
 	{
-		$id= $rndID."-r".$row.":c".$col;
-
-		if ( !isset($style[$col]) )
-			$style[$col]= "padding: 1px 10px 1px 10px; ";
-
 		//-------------------------------------------------------------------------------------------------------------
 		// header
 
@@ -78,21 +93,23 @@ foreach ($array_csv_lines= preg_split("/[\n]/", $text) as $row => $csv_line)
 
 			if (preg_match("/([\/\\\\|])(.*)\\1$/", $title, $a_align)) 
 			{
+				print "<style>\n";
 				switch ($a_align[1]) {
-					case "/" :	$style[$col].= "text-align:right; ";	break;
-					case "\\" :	$style[$col].= "text-align:left; ";		break;
-					case "|" :	$style[$col].= "text-align:center; ";	break;
+					case "/" :	print "#". $table_id ." .col". $col ." { text-align:right; }";	break;
+					case "\\" :	print "#". $table_id ." .col". $col ." { text-align:left; }";	break;
+					case "|" :	print "#". $table_id ." .col". $col ." { text-align:center; }";	break;
 				}
+				print "</style>\n";
 
 				$title= $a_align[2];
 			}
-/*
+
 			if (!strcmp($title, "++TOTAL++"))
 			{
-				if (isset($total_i[$col]))
-					print "<th style=\"". $style["th"][""] . $style[$col] ."\">". sprintf("%0.2f", $total_i[$col] + ($total_d[$col]/100)) ."</th>";
+				if (isset($total_col[$col]))
+					print "<th class=\"row". $row ." col". $col ."\" >". sprintf("%0.2f", $total_col[$col]) ."</th>";
 				else
-					print "<th style=\"". $style["th"]["error"] . $style[$col] ."\">ERROR!</th>";
+					print "<th class=\"error row". $row ." col". $col ."\" >ERROR!</th>";
 
 				continue;
 			}
@@ -103,15 +120,14 @@ foreach ($array_csv_lines= preg_split("/[\n]/", $text) as $row => $csv_line)
 					case "#" :
 						$DEBUG= 1; // drop through ...
 					case "+" :
-						$total_i[$col]= 0;
-						$total_d[$col]= 0;
+						$total_col[$col]= 0;
 						break;
 				}
 
 				$title= $a_accum[1];
 			}
-*/
-			print "<th id=\"". $id ."\" style=\"". $style["th"][""] . $style[$col] ."\">". $this->htmlspecialchars_ent($title) ."</th>";
+
+			print "<th class=\"row". $row ." col". $col ."\" >". $this->htmlspecialchars_ent($title) ."</th>";
 			continue;
 		}
 
@@ -122,25 +138,46 @@ foreach ($array_csv_lines= preg_split("/[\n]/", $text) as $row => $csv_line)
 		//
 		if (preg_match("/^\s*$/",$cell)) 
 		{
-			print "<td id=\"". $id ."\" style=\"". $style[$col] ."\">&nbsp;</td>";
+			print "<td class=\"row". $row ." col". $col ."\" >&nbsp;</td>";
 			continue;
 		}
-/*		
-		elseif ($total[$col] && preg_match("/^\"?([\s\d+\-,.]+)\"?$/", $cell, $matches))
-		{
-			$matches_nows= preg_replace('/\s+/', '', $matches[1]);
 
-			if (preg_match("/^([+-]?)(\d{1,3}(\.\d{3})*|(\d+)),(\d{2})$/", $matches_nows, $swe))
-			{
-				$format= "SE";
-				$i= $swe[1] . preg_replace('/\./', '', $swe[2]);
-				$d= $swe[1] . $swe[5];
-			}
-			elseif (preg_match("/^([+-]?)(\d{1,3}(\,\d{3})*|(\d+))(\.(\d{2}))?$/", $matches_nows, $usa))
+		elseif (isset($total_col[$col]) && preg_match("/^\"?([\s\d+\-,.]+)\"?$/", $cell, $matches))
+		{
+			$title= $cell;
+			$cell= preg_replace('/\s+/', '', $matches[1]);
+
+			$format= "ERR";
+			$nr= "ERROR!";
+
+			if (preg_match("/^([+-]?)(\d{1,3}(\,\d{3})*|(\d+))(\.(\d{2}))?$/", $cell, $a_usa))
 			{
 				$format= "US";
-				$i= $usa[1] . preg_replace('/,/', '', $usa[2]);
-				$d= $usa[1] . $usa[5];
+				$i= $a_usa[1] . preg_replace('/,/', '', $a_usa[2]);
+				$d= $a_usa[1] . $a_usa[5];
+				$nr= intval($i) + (intval($d)/100);
+				$total_col[$col]+= $nr;
+
+				$cell= sprintf("%0.2f", $nr);
+			}
+			else 
+			{
+				//$cell_style.= $css["td"]["error"];
+				$cell= "ERROR!";
+			}
+
+			print "<td class=\"row". $row ." col". $col ."\" title=\"". $title ."(". $format .")\" style=\"". (($nr <= 0) ? "background-color:#d30; " : "" ) . "\">". $cell ."</td>";
+
+			continue;
+		}
+			/*
+		elseif (isset($total_col[$col]) && preg_match("/^\"?([\s\d+\-,.]+)\"?$/", $cell, $matches))
+		{
+			if (preg_match("/^([+-]?)(\d{1,3}(\.\d{3})*|(\d+)),(\d{2})$/", $cell, $a_swe))
+			{
+				$format= "SE";
+				$i= $a_swe[1] . preg_replace('/\./', '', $a_swe[2]);
+				$d= $a_swe[1] . $a_swe[5];
 			}
 			else
 			{
@@ -160,14 +197,15 @@ foreach ($array_csv_lines= preg_split("/[\n]/", $text) as $row => $csv_line)
 
 			continue;
 		}
-*/		
+			*/
+
 		// extract the cell out of it's quotes
 		//
         if (preg_match("/^\s*(\"?)(.*?)\\1\s*$/", $cell, $matches))
 		{
 			if ($matches[1] == "\"")
 			{
-				$style[$col].= "white-space:pre; ". $style[$col];
+				$cell_style.= "white-space:pre; ";
 				$cell= $matches[2];
 			}
 			else
@@ -195,13 +233,16 @@ foreach ($array_csv_lines= preg_split("/[\n]/", $text) as $row => $csv_line)
 		else
 			$cell= $this->htmlspecialchars_ent($cell);
 
-		print "<td id=\"". $id ."\" style=\"". $style[$col] ."\">". $cell ."</td>";
+		print "<td class=\"row". $row ." col". $col ."\" >". $cell ."</td>";
 
-		//print "<td id=\"". $id ."\" style=\"". $style["td"]["error"] . $style[$col] ."\">ERROR!</td>"; // $this->htmlspecialchars_ent($cell)
+		//print "<td id=\"". $id ."\" >ERROR!</td>"; // $this->htmlspecialchars_ent($cell)
 
 	}
 	print "</tr>\n";
 
 }
-print "</tbody></table>\n";
+print "</table>\n";
+
+// https://www.w3schools.com/js/js_htmldom_html.asp
+print "<script>document.getElementById(\"".$rndID."-r4:c0\").innerHTML = \"New text!\";</script>";
 ?>
