@@ -22,7 +22,7 @@ if (!defined('PATTERN_CURRENCY_US'))	define('PATTERN_CURRENCY_US', '([+-]?)(\d{1
 if (preg_match('/^'.PATTERN_ARGUMENT.PATTERN_ARGUMENT.PATTERN_ARGUMENT.'$/su', ';'.$format_option, $args))
 	list(, $arg1, $arg2, $arg3) = $args;
 
-$delim= ($arg1 == "semi-colon") ? ";" : ",";
+$delim= ($arg1 == 'semi-colon') ? ';' : ',';
 
 // https://www.phpliveregex.com
 // https://www.regular-expressions.info/quickstart.html
@@ -31,8 +31,8 @@ $delim= ($arg1 == "semi-colon") ? ";" : ",";
 // asserts what precedes the ; is not a backslash \\\\, doesn't account for \\; (escaped backslash semicolon)
 // OMFG! https://stackoverflow.com/questions/40479546/how-to-split-on-white-spaces-not-between-quotes
 //
-$regex_split_on_delim_not_between_quotes="(?<!\\\\)". $delim ."(?=(?:[^\"]*([\"])[^\"]*\\1)*[^\"]*$)";
-$regex_escaped_delim="\\\\". $delim ."";
+$regex_split_on_delim_not_between_quotes='(?<!\\\\)'. $delim .'(?=(?:[^\"]*([\"])[^\"]*\\1)*[^\"]*$)';
+$regex_escaped_delim='\\\\'. $delim .'';
 
 //---------------------------------------------------------------------------------------------------------------------
 
@@ -42,11 +42,11 @@ $table_id= rndw(23);
 
 // https://stackoverflow.com/questions/1028248/how-to-combine-class-and-id-in-css-selector
 // table, th, td { border: 1px solid black; border-collapse: collapse; }
-$css["th, td"]= "{ padding: 1px 10px 1px 10px; }";
-$css["th"]= "{ background-color:#ccc; }"; 
-$css["tr.even"]= "{ background-color:#ffe; }";
-$css["tr.odd"]= "{ background-color:#eee; }";
-$css["td.red"]= "{ background-color:#f00; }";
+$css['th, td']= '{ padding: 1px 10px 1px 10px; }';
+$css['th']= '{ background-color:#ccc; }'; 
+$css['tr.even']= '{ background-color:#ffe; }';
+$css['tr.odd']= '{ background-color:#eee; }';
+$css['td.red']= '{ background-color:#f00; }';
 
 foreach ($array_csv_lines as $row => $csv_line) 
 {
@@ -70,59 +70,59 @@ foreach ($array_csv_lines as $row => $csv_line)
 
 print "<style>\n";
 foreach ($css as $key => $rule)
-	print "#". $table_id ." ". $key ." ". $rule ."\n";
+	print '#'. $table_id .' '. $key .' '. $rule ."\n";
 print "</style>\n";
 
 $comments= 0;
 
-print "<table id=\"". $table_id ."\">\n";
+print '<table id="'. $table_id .'">'. "\n";
 foreach ($array_csv_lines as $row => $csv_line) 
 {
-	if (preg_match("/^#|^\s*$/",$csv_line)) {
+	if (preg_match('/^#|^\s*$/',$csv_line)) {
 		$comments++;
 		continue;
 	}
 
-	print (($row+$comments)%2) ? "<tr class=\"even\" style=\"\" >" : "<tr class=\"odd\" style=\"\" >";
+	print (($row+$comments)%2) ? '<tr class="even" >' : '<tr class="odd" >';
 
-	foreach (preg_split("/". $regex_split_on_delim_not_between_quotes ."/", $csv_line) as $col => $cell)
+	foreach (preg_split('/'. $regex_split_on_delim_not_between_quotes .'/', $csv_line) as $col => $cell)
 	{
 		//-------------------------------------------------------------------------------------------------------------
 		// header
 
-		if (preg_match("/^\"?\s*==(.*)==\s*\"?$/", $cell, $a_header)) 
+		if (preg_match('/^("?)\s*==(.*)==\s*\1$/', $cell, $a_header)) 
 		{
-			$title= $a_header[1];
+			$title= $a_header[2];
 
-			if (preg_match("/([\/\\\\|])(.*)\\1$/", $title, $a_align)) 
+			if (preg_match('/([\/\\\\|])(.*)\1$/', $title, $a_align)) 
 			{
 				print "<style>\n";
 				switch ($a_align[1]) {
-					case "/" :	print "#". $table_id ." .col". $col ." { text-align:right; }";	break;
-					case "\\" :	print "#". $table_id ." .col". $col ." { text-align:left; }";	break;
-					case "|" :	print "#". $table_id ." .col". $col ." { text-align:center; }";	break;
+					case '/' :	print '#'. $table_id .' .col'. $col .' { text-align:right; }';	break;
+					case '\\' :	print '#'. $table_id .' .col'. $col .' { text-align:left; }';	break;
+					case '|' :	print '#'. $table_id .' .col'. $col .' { text-align:center; }';	break;
 				}
 				print "</style>\n";
 
 				$title= $a_align[2];
 			}
 
-			if (!strcmp($title, "++TOTAL++"))
+			if (!strcmp($title, '++TOTAL++'))
 			{
 				if (isset($total_col[$col]))
-					print "<th class=\"row". $row ." col". $col ."\" >". sprintf("%0.2f", $total_col[$col]) ."</th>";
+					print '<th class="row'. $row .' col'. $col .'" >'. sprintf("%0.2f", $total_col[$col]) .'</th>';
 				else
-					print "<th class=\"error row". $row ." col". $col ."\" >ERROR!</th>";
+					print '<th class="error row'. $row .' col'. $col .'" >ERROR!</th>';
 
 				continue;
 			}
 
-			if (preg_match("/^(.*)([+#])\\2$/", $title, $a_accum)) 
+			if (preg_match('/^(.*)([+#])\\2$/', $title, $a_accum)) 
 			{
 				switch ($a_accum[2]) {
-					case "#" :
+					case '#' :
 						$DEBUG= 1; // drop through ...
-					case "+" :
+					case '+' :
 						$total_col[$col]= 0;
 						break;
 				}
@@ -130,7 +130,7 @@ foreach ($array_csv_lines as $row => $csv_line)
 				$title= $a_accum[1];
 			}
 
-			print "<th class=\"row". $row ." col". $col ."\" >". $this->htmlspecialchars_ent($title) ."</th>";
+			print '<th class="row'. $row .' col'. $col .'" >'. $this->htmlspecialchars_ent($title) .'</th>';
 			continue;
 		}
 
@@ -139,33 +139,33 @@ foreach ($array_csv_lines as $row => $csv_line)
 
 		// if blank, print &nbsp;
 		//
-		if (preg_match("/^\s*$/",$cell)) 
+		if (preg_match('/^\s*$/',$cell)) 
 		{
-			print "<td class=\"row". $row ." col". $col ."\" >&nbsp;</td>";
+			print '<td class="row'. $row .' col'. $col .'" >&nbsp;</td>';
 			continue;
 		}
 
-		elseif (isset($total_col[$col]) && preg_match("/^\"?([\s\d+\-,.]+)\"?$/", $cell, $matches))
+		elseif (isset($total_col[$col]) && preg_match('/^\"?([\s\d+\-,.]+)\"?$/', $cell, $matches))
 		{
 			$title= $cell;
 			$cell= preg_replace('/\s+/', '', $matches[1]);
 
 			if (preg_match('/^'.PATTERN_CURRENCY_US.'$/', $cell, $a_currency))
 			{
-				$format= "US";
+				$format= 'US';
 
 				$cell= $a_currency[1] . $a_currency[2];
 				if ( isset($a_currency[3]) )
-					$cell.= ".". $a_currency[3];
+					$cell.= '.'. $a_currency[3];
 
 				$nr= floatval( preg_replace('/,/', '', $cell) );
 				$total_col[$col]+= $nr;
 
-				print "<td class=\"". (($nr <= 0) ? "red" : "" ) ." row".$row ." col".$col ."\" title=\"". $title ."(". $format .")\" >". sprintf("%0.2f", $nr) ."</td>";
+				print '<td class="'. (($nr <= 0) ? 'red' : '' ) .' row'.$row .' col'.$col .'" title="'. $title .'('. $format .')" >'. sprintf('%0.2f', $nr) .'</td>';
 				continue;
 			}
 
-			print "<td class=\"red row".$row ." col".$col ."\" title=\"". $title ."(ERR)\" >ERROR!</td>";
+			print '<td class="red row'.$row .' col'.$col .'" title="'. $title .'(ERR)" >ERROR!</td>';
 			continue;
 		}
 			/*
@@ -197,44 +197,43 @@ foreach ($array_csv_lines as $row => $csv_line)
 		}
 			*/
 
-		$cell_style="";
+		$cell_style='';
 
 		// extract the cell out of it's quotes
 		//
-        if (preg_match("/^\s*(\"?)(.*?)\\1\s*$/", $cell, $matches))
+        if (preg_match('/^\s*("?)(.*?)\1\s*$/', $cell, $matches))
 		{
-			if ($matches[1] == "\"")
+			if ($matches[1] == '"')
 			{
-				$cell_style.= "white-space:pre; ";
+				$cell_style.= 'white-space:pre; ';
 				$cell= $matches[2];
 			}
 			else
-				$cell= preg_replace("/". $regex_escaped_delim ."/", $delim, $matches[2]);
+				$cell= preg_replace('/'. $regex_escaped_delim .'/', $delim, $matches[2]);
 		}
 
 		// test for CamelLink
 		//
-		if (preg_match_all("/\[\[([[:alnum:]]+)\]\]/", $cell, $all_links))
+		if (preg_match_all('/\[\[([[:alnum:]]+)\]\]/', $cell, $all_links))
 		{
 			foreach ($all_links[1] as $i => $camel_link) 
-				$cell = preg_replace("/\[\[". $camel_link ."\]\]/", $this->Link($camel_link), $cell);
+				$cell = preg_replace('/\[\['. $camel_link .'\]\]/', $this->Link($camel_link), $cell);
 		}		
 		// test for [[url|label]]
 		//
-		elseif (preg_match_all("/\[\[(.*?\|.*?)\]\]/", $cell, $all_links))
+		elseif (preg_match_all('/\[\[(.*?\|.*?)\]\]/', $cell, $all_links))
 		{
 			foreach ($all_links[1] as $i => $url_link) 
-				if(preg_match("/^\s*(.*?)\s*\|\s*(.*?)\s*$/su", $url_link, $matches)) {
+				if(preg_match('/^\s*(.*?)\s*\|\s*(.*?)\s*$/su', $url_link, $matches)) {
 					$url = $matches[1];
 					$text = $matches[2];
-					$cell = $this->Link($url, "", $text, TRUE, TRUE, '', '', FALSE);	
+					$cell = $this->Link($url, '', $text, TRUE, TRUE, '', '', FALSE);	
 				}
 		}		
 		else
 			$cell= $this->htmlspecialchars_ent($cell);
 
-		print "<td class=\"row". $row ." col". $col ."\" style=\"". $cell_style ."\" >". $cell ."</td>";
-		//print '<td class="row'. $row .' col'. $col .'" style="'. $cell_style .'" >'. $cell .'</td>';
+		print '<td class="row'. $row .' col'. $col .'" style="'. $cell_style .'" >'. $cell .'</td>';
 
 	}
 	print "</tr>\n";
@@ -243,5 +242,5 @@ foreach ($array_csv_lines as $row => $csv_line)
 print "</table>\n";
 
 // https://www.w3schools.com/js/js_htmldom_html.asp
-print "<script>document.getElementById(\"".$rndID."-r4:c0\").innerHTML = \"New text!\";</script>";
+print '<script>document.getElementById("'. $rndID. '-r4:c0").innerHTML = "New text!";</script>';
 ?>
