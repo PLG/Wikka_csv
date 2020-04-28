@@ -20,7 +20,7 @@ $currency_grouping= '\.';
 $currency_decimal= '\,';
 $currency_places= 2;
 
-if (!defined('PATTERN_ARGUMENT'))		define('PATTERN_ARGUMENT', '(?:;([^;\)\x01-\x1f\*\?\"<>\|]*))?');
+if (!defined('PATTERN_ARGUMENT'))		define('PATTERN_ARGUMENT', '(?:;([^;\)\x01-\x1f\*\?"<>\|]*))?');
 if (!defined('PATTERN_CSS_DEFINITION'))	define('PATTERN_CSS_DEFINITION', '#!\s*((?:t[hrd])(?:\.\w*)?)\s*(\{.*\})');
 if (!defined('PATTERN_CURRENCY'))		define('PATTERN_CURRENCY', '([+-]?)(\d{1,3}(?:'. $currency_grouping .'\d{3})*|(?:\d+))(?:'. $currency_decimal .'(\d{'. $currency_places .'}))?');
 
@@ -38,7 +38,7 @@ $delim= ($arg1 == 'semi-colon') ? ';' : ',';
 // OMFG! https://stackoverflow.com/questions/40479546/how-to-split-on-white-spaces-not-between-quotes
 //
 //TODO:
-$regex_split_on_delim_not_between_quotes='(?<!\\\\)'. $delim .'(?=(?:[^\"]*([\"])[^\"]*\\1)*[^\"]*$)';
+$regex_split_on_delim_not_between_quotes='(?<!\\\)'. $delim .'(?=(?:[^"]*(["])[^"]*\\1)*[^"]*$)';
 $regex_escaped_delim='\\\\'. $delim .'';
 
 //---------------------------------------------------------------------------------------------------------------------
@@ -158,6 +158,21 @@ foreach ($array_csv_lines as $row => $csv_line)
 			continue;
 		}
 
+		$cell_style='';
+
+		// extract the cell out of it's quotes
+		//
+        if (preg_match('/^\s*("?)(.*?)\1\s*$/', $cell, $matches))
+		{
+			if ($matches[1] == '"')
+			{
+				$cell_style.= 'white-space:pre; ';
+				$cell= $matches[2];
+			}
+			else
+				$cell= preg_replace('/'. $regex_escaped_delim .'/', $delim, $matches[2]);
+		}
+
 		//TODO: if there is a ++ column, then if there is no value in the column, show as red/error
 		elseif (isset($total_col[$col]) && preg_match('/^\"?([\s\d+\-,.]+)\"?$/', $cell, $matches))
 		{
@@ -184,21 +199,6 @@ foreach ($array_csv_lines as $row => $csv_line)
 			//TODO: unset($total_col[$col]); = false
 			print '<td class="red-bkgd row'.$row .' col'.$col .'" title="'. $title .'(ERR)" >ERROR!</td>';
 			continue;
-		}
-
-		$cell_style='';
-
-		// extract the cell out of it's quotes
-		//
-        if (preg_match('/^\s*("?)(.*?)\1\s*$/', $cell, $matches))
-		{
-			if ($matches[1] == '"')
-			{
-				$cell_style.= 'white-space:pre; ';
-				$cell= $matches[2];
-			}
-			else
-				$cell= preg_replace('/'. $regex_escaped_delim .'/', $delim, $matches[2]);
 		}
 
 		// test for CamelLink
