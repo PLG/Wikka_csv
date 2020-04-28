@@ -14,10 +14,16 @@ if (!function_exists('rndw')) {
 	}
 }
 
+//TODO:
+$tmp= '.,2'; #,###.###
+$currency_grouping= '\.';
+$currency_decimal= '\,';
+$currency_places= 2;
+
 if (!defined('PATTERN_ARGUMENT'))		define('PATTERN_ARGUMENT', '(?:;([^;\)\x01-\x1f\*\?\"<>\|]*))?');
 if (!defined('PATTERN_CSS_DEFINITION'))	define('PATTERN_CSS_DEFINITION', '#!\s*((?:t[hrd])(?:\.\w*)?)\s*(\{.*\})');
-if (!defined('PATTERN_CURRENCY_US'))	define('PATTERN_CURRENCY_US', '([+-]?)(\d{1,3}(?:\,\d{3})*|(?:\d*))(?:\.(\d{2}))?');
-//if (!defined('PATTERN_CURRENCY_SE'))	define('PATTERN_CURRENCY_SE', '([+-]?)(\d{1,3}(?:\.\d{3})*|(?:\d*))(?:\,(\d{2}))?');
+if (!defined('PATTERN_CURRENCY'))		define('PATTERN_CURRENCY', '([+-]?)(\d{1,3}(?:'. $currency_grouping .'\d{3})*|(?:\d+))(?:'. $currency_decimal .'(\d{'. $currency_places .'}))?');
+
 
 if (preg_match('/^'.PATTERN_ARGUMENT.PATTERN_ARGUMENT.PATTERN_ARGUMENT.'$/su', ';'.$format_option, $args))
 	list(, $arg1, $arg2, $arg3) = $args;
@@ -31,6 +37,7 @@ $delim= ($arg1 == 'semi-colon') ? ';' : ',';
 // asserts what precedes the ; is not a backslash \\\\, doesn't account for \\; (escaped backslash semicolon)
 // OMFG! https://stackoverflow.com/questions/40479546/how-to-split-on-white-spaces-not-between-quotes
 //
+//TODO:
 $regex_split_on_delim_not_between_quotes='(?<!\\\\)'. $delim .'(?=(?:[^\"]*([\"])[^\"]*\\1)*[^\"]*$)';
 $regex_escaped_delim='\\\\'. $delim .'';
 
@@ -41,11 +48,13 @@ $array_csv_lines= preg_split("/[\n]/", $text);
 $table_id= rndw(23);
 
 // https://stackoverflow.com/questions/1028248/how-to-combine-class-and-id-in-css-selector
-// table, th, td { border: 1px solid black; border-collapse: collapse; }
+//TODO: table, th, td { border: 1px solid black; border-collapse: collapse; }
 $css['th, td']= '{ padding: 1px 10px 1px 10px; }';
 $css['th']= '{ background-color:#ccc; }'; 
 $css['tr.even']= '{ background-color:#ffe; }';
 $css['tr.odd']= '{ background-color:#eee; }';
+$css['.red-bkgd']= '{ background-color:#f00; }';
+//TODO:
 $css['td.red']= '{ background-color:#f00; }';
 
 foreach ($array_csv_lines as $row => $csv_line) 
@@ -85,10 +94,12 @@ foreach ($array_csv_lines as $row => $csv_line)
 
 	print (($row+$comments)%2) ? '<tr class="even" >' : '<tr class="odd" >';
 
-	foreach (preg_split('/'. $regex_split_on_delim_not_between_quotes .'/', $csv_line) as $col => $cell)
+	foreach (preg_split('/'. $regex_split_on_delim_not_between_quotes .'/', $csv_line) as $col => $csv_cell)
 	{
 		//-------------------------------------------------------------------------------------------------------------
 		// header
+
+		$cell= trim($csv_cell);
 
 		if (preg_match('/^("?)\s*==(.*)==\s*\1$/', $cell, $a_header)) 
 		{
@@ -112,22 +123,24 @@ foreach ($array_csv_lines as $row => $csv_line)
 				if (isset($total_col[$col]))
 					print '<th class="row'. $row .' col'. $col .'" >'. sprintf("%0.2f", $total_col[$col]) .'</th>';
 				else
-					print '<th class="error row'. $row .' col'. $col .'" >ERROR!</th>';
+					print '<th class="red-bkgd row'. $row .' col'. $col .'" >ERROR!</th>';
 
 				continue;
 			}
 
 			if (preg_match('/^(.*)([+#])\\2$/', $title, $a_accum)) 
 			{
-				switch ($a_accum[2]) {
-					case '#' :
-						$DEBUG= 1; // drop through ...
-					case '+' :
-						$total_col[$col]= 0;
-						break;
-				}
+				if ($a_accum[2] == '#')
+					$DEBUG= 1; //TODO:
 
-				$title= $a_accum[1];
+				if ($row == $comments) {
+					$title= $a_accum[1];
+					$total_col[$col]= 0;
+				}
+				elseif ($col == 0) {
+					$title= $a_accum[1];
+					$total_row[$row]= 0;
+				}
 			}
 
 			print '<th class="row'. $row .' col'. $col .'" >'. $this->htmlspecialchars_ent($title) .'</th>';
@@ -145,57 +158,33 @@ foreach ($array_csv_lines as $row => $csv_line)
 			continue;
 		}
 
+		//TODO: if there is a ++ column, then if there is no value in the column, show as red/error
 		elseif (isset($total_col[$col]) && preg_match('/^\"?([\s\d+\-,.]+)\"?$/', $cell, $matches))
 		{
 			$title= $cell;
-			$cell= preg_replace('/\s+/', '', $matches[1]);
-
-			if (preg_match('/^'.PATTERN_CURRENCY_US.'$/', $cell, $a_currency))
+	
+			if (preg_match('/^'.PATTERN_CURRENCY.'$/', $cell, $a_currency))
 			{
+				//TODO:
 				$format= 'US';
+				//var_dump($a_currency);
 
-				$cell= $a_currency[1] . $a_currency[2];
+				$cell= $a_currency[1] . preg_replace('/'.$currency_grouping.'/', '', $a_currency[2]);
 				if ( isset($a_currency[3]) )
 					$cell.= '.'. $a_currency[3];
 
-				$nr= floatval( preg_replace('/,/', '', $cell) );
+				$nr= floatval( $cell );
+				// TODO: if total_col == false
 				$total_col[$col]+= $nr;
 
 				print '<td class="'. (($nr <= 0) ? 'red' : '' ) .' row'.$row .' col'.$col .'" title="'. $title .'('. $format .')" >'. sprintf('%0.2f', $nr) .'</td>';
 				continue;
 			}
 
-			print '<td class="red row'.$row .' col'.$col .'" title="'. $title .'(ERR)" >ERROR!</td>';
+			//TODO: unset($total_col[$col]); = false
+			print '<td class="red-bkgd row'.$row .' col'.$col .'" title="'. $title .'(ERR)" >ERROR!</td>';
 			continue;
 		}
-			/*
-		elseif (isset($total_col[$col]) && preg_match("/^\"?([\s\d+\-,.]+)\"?$/", $cell, $matches))
-		{
-			if (preg_match("/^([+-]?)(\d{1,3}(\.\d{3})*|(\d+)),(\d{2})$/", $cell, $a_swe))
-			{
-				$format= "SE";
-				$i= $a_swe[1] . preg_replace('/\./', '', $a_swe[2]);
-				$d= $a_swe[1] . $a_swe[5];
-			}
-			else
-			{
-				$total[$col]= -1;
-				print "<td style=\"". $style[$col] ."\">".$this->htmlspecialchars_ent($matches_nows)."</td>";
-				continue;
-			}
-
-			$total_i[$col]+= intval($i);
-			$total_d[$col]+= intval($d);
-			$nr= $i + ($d/100);
-
-			if ($DEBUG == 1)
-				print "<td style=\"". $style[$col] ."\">". $cell ."(". $format .")= " . sprintf("%.2f", $nr) ."+= ". $total_i[$col] ." ". $total_d[$col] ."</td>";
-			else
-				print "<td title=\"". $cell ."(". $format .")\" style=\"". (($nr <= 0) ? "background-color:#d30; " : "" ) . $style[$col] ."\">". sprintf("%.2f", $nr) ."</td>";
-
-			continue;
-		}
-			*/
 
 		$cell_style='';
 
