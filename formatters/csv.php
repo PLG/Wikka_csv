@@ -3,8 +3,6 @@
 // by OnegWR, May 2005, license GPL http://wikkawiki.org/OnegWRCsv
 // by ThePLG, Apr 2020, license GPL http://wikkawiki.org/PLG-Csv
 
-//$DEBUG= 0;
-
 ini_set('display_errors', 'On');
 error_reporting(E_ALL | E_STRICT);
 
@@ -24,6 +22,25 @@ if (!defined('PATTERN_ARGUMENT'))		define('PATTERN_ARGUMENT', '(?:;([^;\)\x01-\x
 if (!defined('PATTERN_CSS_DEFINITION'))	define('PATTERN_CSS_DEFINITION', '#!\s*((?:t[hrd])(?:\.\w*)?)\s*(\{.*\})');
 if (!defined('PATTERN_CURRENCY'))		define('PATTERN_CURRENCY', '([+-]?)(\d{1,3}(?:'. $currency_grouping .'\d{3})*|(?:\d+))(?:'. $currency_decimal .'(\d{'. $currency_places .'}))?');
 
+//TODO:
+if (!function_exists('parse_currency')) {
+	function parse_currency($cell, $grouping) 
+	{
+		if (preg_match('/^'.PATTERN_CURRENCY.'$/', $cell, $a_currency))
+		{
+			//TODO:
+			$format= 'US';
+
+			$cell= $a_currency[1] . preg_replace('/'.$grouping.'/', '', $a_currency[2]);
+			if ( isset($a_currency[3]) )
+				$cell.= '.'. $a_currency[3];
+
+			return floatval( $cell );
+		}
+
+		return "ERROR!";
+	}
+}
 
 if (preg_match('/^'.PATTERN_ARGUMENT.PATTERN_ARGUMENT.PATTERN_ARGUMENT.'$/su', ';'.$format_option, $args))
 	list(, $arg1, $arg2, $arg3) = $args;
@@ -103,7 +120,7 @@ foreach ($array_csv_lines as $row => $csv_line)
 
 		if (preg_match('/^("?)\s*==(.*)==\s*\1$/', $cell, $a_header)) 
 		{
-			$title= $a_header[2];
+			$title= trim($a_header[2]);
 
 			if (preg_match('/([\/\\\\|])(.*)\1$/', $title, $a_align)) 
 			{
@@ -118,29 +135,38 @@ foreach ($array_csv_lines as $row => $csv_line)
 				$title= $a_align[2];
 			}
 
-			if (!strcmp($title, '++TOTAL++'))
+			if (0 == strcmp($title, '++TOTAL++'))
 			{
-				if (isset($total_col[$col]))
-					print '<th class="row'. $row .' col'. $col .'" >'. sprintf("%0.2f", $total_col[$col]) .'</th>';
-				else
-					print '<th class="red-bkgd row'. $row .' col'. $col .'" >ERROR!</th>';
+				if (( isset($total_col[$col])  && 0 != strcmp($total_col[$col],"ERROR!") )
+				xor ( isset($total_row[$row])  && 0 != strcmp($total_row[$row],"ERROR!") ))
+				{
+					if ( isset($total_col[$col]) ) {
+						print '<th class="row'. $row .' col'. $col .'" >'. sprintf("%0.2f", $total_col[$col]) .'</th>';
+						unset($total_col[$col]);
+					}
+					else { // if ( isset($total_row[$row]) ) // because its xor
+						print '<th class="row'. $row .' col'. $col .'" >'. sprintf("%0.2f", $total_row[$row]) .'</th>';
+						unset($total_row[$row]);
+					}
+
+					continue;
+				}
+
+				print '<th class="red-bkgd row'. $row .' col'. $col .'" >ERROR!</th>';
+
+				unset($total_col[$col]);
+				unset($total_row[$row]);
 
 				continue;
 			}
 
-			if (preg_match('/^(.*)([+#])\\2$/', $title, $a_accum)) 
-			{
-				if ($a_accum[2] == '#')
-					$DEBUG= 1; //TODO:
-
-				if ($row == $comments) {
-					$title= $a_accum[1];
-					$total_col[$col]= 0;
-				}
-				elseif ($col == 0) {
-					$title= $a_accum[1];
-					$total_row[$row]= 0;
-				}
+			if (preg_match('/^(.*)\s*([+#])\2$/', $title, $a_accum)) {
+				$title= $a_accum[1];
+				$total_col[$col]= 0;
+			}
+			elseif (preg_match('/^([+#])\1(.*)\s*$/', $title, $a_accum)) {
+				$title= $a_accum[2];
+				$total_row[$row]= 0;
 			}
 
 			print '<th class="row'. $row .' col'. $col .'" >'. $this->htmlspecialchars_ent($title) .'</th>';
@@ -165,29 +191,40 @@ foreach ($array_csv_lines as $row => $csv_line)
 				$cell= preg_replace('/'. $regex_escaped_delim .'/', $delim, $matches[2]);
 		}
 
-		if (isset($total_col[$col]) )
+		if ( isset($total_col[$col]) || isset($total_row[$row]) )
 		{
 			$title= $cell;
-	
+
+			//$nr= parse_currency($cell, $currency_grouping);
+			//var_dump($nr);
+
 			if (preg_match('/^'.PATTERN_CURRENCY.'$/', $cell, $a_currency))
 			{
 				//TODO:
 				$format= 'US';
-				//var_dump($a_currency);
 
 				$cell= $a_currency[1] . preg_replace('/'.$currency_grouping.'/', '', $a_currency[2]);
 				if ( isset($a_currency[3]) )
 					$cell.= '.'. $a_currency[3];
 
 				$nr= floatval( $cell );
-				// TODO: if total_col == false
-				$total_col[$col]+= $nr;
+
+				if ( isset($total_col[$col]) && 0 != strcmp($total_col[$col],"ERROR!") )
+					$total_col[$col]+= $nr;
+
+				if ( isset($total_row[$row]) && 0 != strcmp($total_row[$row],"ERROR!") )
+					$total_row[$row]+= $nr;
 
 				print '<td class="'. (($nr <= 0) ? 'red' : '' ) .' row'.$row .' col'.$col .'" title="'. $title .'('. $format .')" >'. sprintf('%0.2f', $nr) .'</td>';
 				continue;
 			}
 
-			//TODO: unset($total_col[$col]); = false
+			if ( isset($total_col[$col]) )
+				$total_col[$col]= "ERROR!";
+
+			if ( isset($total_row[$row]) )
+				$total_row[$row]= "ERROR!";
+
 			print '<td class="red-bkgd row'.$row .' col'.$col .'" title="'. $title .'(ERR)" >ERROR!</td>';
 			continue;
 		}
