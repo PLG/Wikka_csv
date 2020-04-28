@@ -150,14 +150,6 @@ foreach ($array_csv_lines as $row => $csv_line)
 		//-------------------------------------------------------------------------------------------------------------
 		// cell
 
-		// if blank, print &nbsp;
-		//
-		if (preg_match('/^\s*$/',$cell)) 
-		{
-			print '<td class="row'. $row .' col'. $col .'" >&nbsp;</td>';
-			continue;
-		}
-
 		$cell_style='';
 
 		// extract the cell out of it's quotes
@@ -173,8 +165,7 @@ foreach ($array_csv_lines as $row => $csv_line)
 				$cell= preg_replace('/'. $regex_escaped_delim .'/', $delim, $matches[2]);
 		}
 
-		//TODO: if there is a ++ column, then if there is no value in the column, show as red/error
-		elseif (isset($total_col[$col]) && preg_match('/^\"?([\s\d+\-,.]+)\"?$/', $cell, $matches))
+		if (isset($total_col[$col]) )
 		{
 			$title= $cell;
 	
@@ -198,6 +189,14 @@ foreach ($array_csv_lines as $row => $csv_line)
 
 			//TODO: unset($total_col[$col]); = false
 			print '<td class="red-bkgd row'.$row .' col'.$col .'" title="'. $title .'(ERR)" >ERROR!</td>';
+			continue;
+		}
+
+		// if blank, print &nbsp;
+		//
+		if (preg_match('/^\s*$/',$cell)) 
+		{
+			print '<td class="row'. $row .' col'. $col .'" >&nbsp;</td>';
 			continue;
 		}
 
