@@ -19,7 +19,7 @@ $currency_decimal= '\,';
 $currency_places= 2;
 
 if (!defined('PATTERN_ARGUMENT'))		define('PATTERN_ARGUMENT', '(?:;([^;\)\x01-\x1f\*\?"<>\|]*))?');
-if (!defined('PATTERN_CSS_DEFINITION'))	define('PATTERN_CSS_DEFINITION', '#!\s*((?:t[hrd])(?:\.\w*)?)\s*(\{.*\})');
+if (!defined('PATTERN_CSS_DEFINITION'))	define('PATTERN_CSS_DEFINITION', '#!\s*(t[hrd](?:\.\w*)?|(?:\.\w*))\s*(\{.*\})');
 if (!defined('PATTERN_CURRENCY'))		define('PATTERN_CURRENCY', '([+-]?)(\d{1,3}(?:'. $currency_grouping .'\d{3})*|(?:\d+))(?:'. $currency_decimal .'(\d{'. $currency_places .'}))?');
 
 //TODO:
@@ -70,9 +70,7 @@ $css['th, td']= '{ padding: 1px 10px 1px 10px; }';
 $css['th']= '{ background-color:#ccc; }'; 
 $css['tr.even']= '{ background-color:#ffe; }';
 $css['tr.odd']= '{ background-color:#eee; }';
-$css['.red-bkgd']= '{ background-color:#f00; }';
-//TODO:
-$css['td.red']= '{ background-color:#f00; }';
+$css['.warning']= '{ background-color:#f00; }';
 
 foreach ($array_csv_lines as $row => $csv_line) 
 {
@@ -152,7 +150,7 @@ foreach ($array_csv_lines as $row => $csv_line)
 					continue;
 				}
 
-				print '<th class="red-bkgd row'. $row .' col'. $col .'" >ERROR!</th>';
+				print '<th class="warning row'. $row .' col'. $col .'" >ERROR!</th>';
 
 				unset($total_col[$col]);
 				unset($total_row[$row]);
@@ -215,7 +213,7 @@ foreach ($array_csv_lines as $row => $csv_line)
 				if ( isset($total_row[$row]) && 0 != strcmp($total_row[$row],"ERROR!") )
 					$total_row[$row]+= $nr;
 
-				print '<td class="'. (($nr <= 0) ? 'red' : '' ) .' row'.$row .' col'.$col .'" title="'. $title .'('. $format .')" >'. sprintf('%0.2f', $nr) .'</td>';
+				print '<td class="'. (($nr <= 0) ? 'warning' : '' ) .' row'.$row .' col'.$col .'" title="'. $title .'('. $format .')" >'. sprintf('%0.2f', $nr) .'</td>';
 				continue;
 			}
 
@@ -225,7 +223,7 @@ foreach ($array_csv_lines as $row => $csv_line)
 			if ( isset($total_row[$row]) )
 				$total_row[$row]= "ERROR!";
 
-			print '<td class="red-bkgd row'.$row .' col'.$col .'" title="'. $title .'(ERR)" >ERROR!</td>';
+			print '<td class="warning row'.$row .' col'.$col .'" title="'. $title .'(ERR)" >ERROR!</td>';
 			continue;
 		}
 
