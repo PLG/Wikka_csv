@@ -94,6 +94,9 @@ foreach ($ARRAY_CSV_LINES as $row => $csv_line)
 		continue;
 	}
 
+	if (preg_match('/^#/',$csv_line))
+		print "Invalid CSS directive: [". $csv_line ."]\n";
+
 	break;
 }
 
@@ -229,11 +232,11 @@ foreach ($ARRAY_CSV_LINES as $row => $csv_line)
 			}
 
 			if (!$success)	{
-				print '<td id="'. $id .'" class="warning row'.$row .' col'.$col .'" title="'. $title .'('. $format .')" >ERROR!</td>';
+				print '<td id="'. $id .'" class="accu warning row'.$row .' col'.$col .'" title="'. $title .'('. $format .')" >ERROR!</td>';
 				continue;
 			}
 
-			print '<td id="'. $id .'" class="'. (($nr <= 0) ? 'warning' : '' ) .' row'.$row .' col'.$col .'" title="'. $title .'('. $format .')" >'. sprintf('%0.2f', $nr) .'</td>';
+			print '<td id="'. $id .'" class="accu '. (($nr <= 0) ? 'warning' : '' ) .' row'.$row .' col'.$col .'" title="'. $title .'('. $format .')" >'. sprintf('%0.2f', $nr) .'</td>';
 			continue;
 		}
 
