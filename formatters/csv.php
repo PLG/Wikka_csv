@@ -6,18 +6,34 @@
 ini_set('display_errors', 'On');
 error_reporting(E_ALL | E_STRICT);
 
-$rndw= function ($length=4) {
-	return substr(str_shuffle("qwertyuiopasdfghjklzxcvbnm"),0,$length);
-};
+//---------------------------------------------------------------------------------------------------------------------
+
+if (preg_match('/^'.PATTERN_ARGUMENT.PATTERN_ARGUMENT.PATTERN_ARGUMENT.'$/su', ';'.$format_option, $args))
+	list(, $arg1, $arg2, $arg3) = $args;
+
+$DELIM= ($arg1 == 'semi-colon') ? ';' : ',';
+$ARRAY_CSV_LINES= preg_split("/[\n]/", $text);
+
+// https://www.phpliveregex.com
+// https://www.regular-expressions.info/quickstart.html
+
+if (!defined('ERROR'))					define('ERROR', 'error');
+if (!defined('PATTERN_ARGUMENT'))		define('PATTERN_ARGUMENT', '(?:;([^;\)\x01-\x1f\*\?"<>\|]*))?');
+if (!defined('PATTERN_CSS_DEFINITION'))	define('PATTERN_CSS_DEFINITION', '#!\s*(table, th, td|th, td|t[hrd](?:\.\w*)?|(?:\.\w*))\s*(\{.*\})');
+
+// https://www.rexegg.com/regex-lookarounds.html
+// asserts what precedes the ; is not a backslash \\\\, doesn't account for \\; (escaped backslash semicolon)
+// OMFG! https://stackoverflow.com/questions/40479546/how-to-split-on-white-spaces-not-between-quotes
+//
+$PATTERN_NO_SPLIT_QUOTED_DELIM='(?<!\\\)'. $DELIM .'(?=(?:[^"]*(["])[^"]*\1)*[^"]*$)';
+$PATTERN_ESC_DELIM='\\\\'. $DELIM .'';
+
+//---------------------------------------------------------------------------------------------------------------------
 
 $currency_formats['US']= array('\,', '\.', 2);
 $currency_formats['SE']= array('\.', '\,', 2);
 
 $selected_formats= array('US','SE');
-
-if (!defined('ERROR'))					define('ERROR', 'error');
-if (!defined('PATTERN_ARGUMENT'))		define('PATTERN_ARGUMENT', '(?:;([^;\)\x01-\x1f\*\?"<>\|]*))?');
-if (!defined('PATTERN_CSS_DEFINITION'))	define('PATTERN_CSS_DEFINITION', '#!\s*(table, th, td|th, td|t[hrd](?:\.\w*)?|(?:\.\w*))\s*(\{.*\})');
 
 //if (!function_exists('parse_currency')) { } // doesn't see global scope variables, support 'static'
 // https://www.php.net/manual/en/functions.anonymous.php
@@ -42,27 +58,13 @@ $parse_currency= function ($cell) use (&$currency_formats, &$selected_formats)
 	return array(false, $cell, 'ERR');
 };
 
-if (preg_match('/^'.PATTERN_ARGUMENT.PATTERN_ARGUMENT.PATTERN_ARGUMENT.'$/su', ';'.$format_option, $args))
-	list(, $arg1, $arg2, $arg3) = $args;
-
-$delim= ($arg1 == 'semi-colon') ? ';' : ',';
-
-// https://www.phpliveregex.com
-// https://www.regular-expressions.info/quickstart.html
-
-// https://www.rexegg.com/regex-lookarounds.html
-// asserts what precedes the ; is not a backslash \\\\, doesn't account for \\; (escaped backslash semicolon)
-// OMFG! https://stackoverflow.com/questions/40479546/how-to-split-on-white-spaces-not-between-quotes
-//
-//TODO:
-$regex_split_on_delim_not_between_quotes='(?<!\\\)'. $delim .'(?=(?:[^"]*(["])[^"]*\\1)*[^"]*$)';
-$regex_escaped_delim='\\\\'. $delim .'';
-
 //---------------------------------------------------------------------------------------------------------------------
 
-$array_csv_lines= preg_split("/[\n]/", $text);
+$rndw= function ($length=4) {
+	return substr(str_shuffle("qwertyuiopasdfghjklzxcvbnm"),0,$length);
+};
 
-$table_id= $rndw(23);
+$ID_TABLE= $rndw(23);
 
 // https://stackoverflow.com/questions/1028248/how-to-combine-class-and-id-in-css-selector
 //$css['table, th, td']= '{ border: 1px solid black; border-collapse: collapse; }';
@@ -73,20 +75,13 @@ $css['tr.odd']= '{ background-color:#eee; }';
 $css['.warning']= '{ background-color:#f00; }';
 $css['.total']= '{ border: 1px solid black; border-collapse: collapse; }';
 
-foreach ($array_csv_lines as $row => $csv_line) 
+foreach ($ARRAY_CSV_LINES as $row => $csv_line) 
 {
 	if ( preg_match('/^'.PATTERN_CSS_DEFINITION.'$/', $csv_line, $a_css) )
 	{
 		$css[ $a_css[1] ]= $a_css[2];
-		//print "#". $table_id ." ". $a_css[1] ." ". $a_css[2] ."\n";
 
-//		if ( preg_match_all('/background-color-?([\w]*)\s*:\s*(#[0-9a-fA-F]{3,6})\s*;/', $csv_line, $a_bkcolors) )
-//			foreach ($a_bkcolors[0] as $i => $bkcolors) {
-//				$css[ $a_t[1] ][ $a_bkcolors[1][$i] ]= "background-color:". $a_bkcolors[2][$i] ."; ";
-//				print "css[". $a_t[1] ."][". $a_bkcolors[1][$i] ."]=". $css[ $a_t[1] ][ $a_bkcolors[1][$i] ] ."<br/>";
-//			}
-
-		unset($array_csv_lines[$row]);
+		unset($ARRAY_CSV_LINES[$row]);
 		continue;
 	}
 
@@ -97,15 +92,17 @@ print "<style>\n";
 foreach ($css as $key => $rule) 
 {
 	foreach (explode(',', $key) as $tag) 
-		$key= preg_replace('/'.trim($tag).'/', '#'.$table_id.' '.trim($tag), $key);
+		$key= preg_replace('/'.trim($tag).'/', '#'.$ID_TABLE.' '.trim($tag), $key);
 	print $key .' '. $rule ."\n";
 }
 print "</style>\n";
 
+//---------------------------------------------------------------------------------------------------------------------
+
 $comments= 0;
 
-print '<table id="'. $table_id .'">'. "\n";
-foreach ($array_csv_lines as $row => $csv_line) 
+print '<table id="'. $ID_TABLE .'">'. "\n";
+foreach ($ARRAY_CSV_LINES as $row => $csv_line) 
 {
 	if (preg_match('/^#|^\s*$/',$csv_line)) {
 		$comments++;
@@ -114,7 +111,7 @@ foreach ($array_csv_lines as $row => $csv_line)
 
 	print (($row+$comments)%2) ? '<tr class="even" >' : '<tr class="odd" >';
 
-	foreach (preg_split('/'. $regex_split_on_delim_not_between_quotes .'/', $csv_line) as $col => $csv_cell)
+	foreach (preg_split('/'. $PATTERN_NO_SPLIT_QUOTED_DELIM .'/', $csv_line) as $col => $csv_cell)
 	{
 		//-------------------------------------------------------------------------------------------------------------
 		// header
@@ -127,11 +124,11 @@ foreach ($array_csv_lines as $row => $csv_line)
 
 			if (preg_match('/([\/\\\\|])(.*)\1$/', $title, $a_align)) 
 			{
-				print "<style>\n";
+				print "<style>";
 				switch ($a_align[1]) {
-					case '/' :	print '#'. $table_id .' .col'. $col .' { text-align:right; }';	break;
-					case '\\' :	print '#'. $table_id .' .col'. $col .' { text-align:left; }';	break;
-					case '|' :	print '#'. $table_id .' .col'. $col .' { text-align:center; }';	break;
+					case '/' :	print '#'. $ID_TABLE .' .col'. $col .' { text-align:right; }';	break;
+					case '\\' :	print '#'. $ID_TABLE .' .col'. $col .' { text-align:left; }';	break;
+					case '|' :	print '#'. $ID_TABLE .' .col'. $col .' { text-align:center; }';	break;
 				}
 				print "</style>\n";
 
@@ -196,7 +193,7 @@ foreach ($array_csv_lines as $row => $csv_line)
 				$cell= $matches[2];
 			}
 			else
-				$cell= preg_replace('/'. $regex_escaped_delim .'/', $delim, $matches[2]);
+				$cell= preg_replace('/'. $PATTERN_ESC_DELIM .'/', $DELIM, $matches[2]);
 		}
 
 		if ( isset($total_col[$col]) || isset($total_row[$row]) )
