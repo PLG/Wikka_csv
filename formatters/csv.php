@@ -62,6 +62,13 @@ $parse_currency= function ($cell) use (&$currency_formats, &$selected_formats)
 
 //---------------------------------------------------------------------------------------------------------------------
 
+// https://stackoverflow.com/questions/3302857/algorithm-to-get-the-excel-like-column-name-of-a-number
+$spreadsheet_baseZ= function ($n) {
+    for($r = ""; $n >= 0; $n = intval($n / 26) - 1)
+        $r = chr($n%26 + 0x41) . $r;
+    return $r;
+};
+
 $rndw= function ($length=4) {
 	return substr(str_shuffle("qwertyuiopasdfghjklzxcvbnm"),0,$length);
 };
@@ -115,6 +122,8 @@ foreach ($ARRAY_CSV_LINES as $row => $csv_line)
 
 	foreach (preg_split('/'. $PATTERN_NO_SPLIT_QUOTED_DELIM .'/', $csv_line) as $col => $csv_cell)
 	{
+		$id= $ID_TABLE ."-". $spreadsheet_baseZ($col) . $row;
+
 		//-------------------------------------------------------------------------------------------------------------
 		// header
 
@@ -143,18 +152,18 @@ foreach ($ARRAY_CSV_LINES as $row => $csv_line)
 				xor ( isset($total_row[$row]) && !$total_row[ERROR] ))
 				{
 					if ( isset($total_col[$col]) ) {
-						print '<th class="total row'. $row .' col'. $col .'" >'. sprintf("%0.2f", $total_col[$col]) .'</th>';
+						print '<th id="'. $id .'" class="total row'. $row .' col'. $col .'" >'. sprintf("%0.2f", $total_col[$col]) .'</th>';
 						unset($total_col[$col]);
 					}
 					else { // if ( isset($total_row[$row]) ) // because its xor
-						print '<th class="total row'. $row .' col'. $col .'" >'. sprintf("%0.2f", $total_row[$row]) .'</th>';
+						print '<th id="'. $id .'" class="total row'. $row .' col'. $col .'" >'. sprintf("%0.2f", $total_row[$row]) .'</th>';
 						unset($total_row[$row]);
 					}
 
 					continue;
 				}
 
-				print '<th class="warning total row'. $row .' col'. $col .'" >ERROR!</th>';
+				print '<th id="'. $id .'" class="warning total row'. $row .' col'. $col .'" >ERROR!</th>';
 
 				if ( isset($total_col[$col]) )
 					unset($total_col[$col]);
@@ -176,7 +185,7 @@ foreach ($ARRAY_CSV_LINES as $row => $csv_line)
 				$total_row[ERROR]= false;
 			}
 
-			print '<th class="row'. $row .' col'. $col .'" >'. $this->htmlspecialchars_ent($title) .'</th>';
+			print '<th id="'. $id .'" class="row'. $row .' col'. $col .'" >'. $this->htmlspecialchars_ent($title) .'</th>';
 			continue;
 		}
 
@@ -220,11 +229,11 @@ foreach ($ARRAY_CSV_LINES as $row => $csv_line)
 			}
 
 			if (!$success)	{
-				print '<td class="warning row'.$row .' col'.$col .'" title="'. $title .'('. $format .')" >ERROR!</td>';
+				print '<td id="'. $id .'" class="warning row'.$row .' col'.$col .'" title="'. $title .'('. $format .')" >ERROR!</td>';
 				continue;
 			}
 
-			print '<td class="'. (($nr <= 0) ? 'warning' : '' ) .' row'.$row .' col'.$col .'" title="'. $title .'('. $format .')" >'. sprintf('%0.2f', $nr) .'</td>';
+			print '<td id="'. $id .'" class="'. (($nr <= 0) ? 'warning' : '' ) .' row'.$row .' col'.$col .'" title="'. $title .'('. $format .')" >'. sprintf('%0.2f', $nr) .'</td>';
 			continue;
 		}
 
@@ -232,7 +241,7 @@ foreach ($ARRAY_CSV_LINES as $row => $csv_line)
 		//
 		if (preg_match('/^\s*$/',$cell)) 
 		{
-			print '<td class="row'. $row .' col'. $col .'" >&nbsp;</td>';
+			print '<td id="'. $id .'" class="row'. $row .' col'. $col .'" >&nbsp;</td>';
 			continue;
 		}
 
@@ -257,7 +266,7 @@ foreach ($ARRAY_CSV_LINES as $row => $csv_line)
 		else
 			$cell= $this->htmlspecialchars_ent($cell);
 
-		print '<td class="row'. $row .' col'. $col .'" style="'. $cell_style .'" >'. $cell .'</td>';
+		print '<td id="'. $id .'" class="row'. $row .' col'. $col .'" style="'. $cell_style .'" >'. $cell .'</td>';
 
 	}
 	print "</tr>\n";
@@ -266,5 +275,5 @@ foreach ($ARRAY_CSV_LINES as $row => $csv_line)
 print "</table>\n";
 
 // https://www.w3schools.com/js/js_htmldom_html.asp
-print '<script>document.getElementById("'. $rndID. '-r4:c0").innerHTML = "New text!";</script>';
+print '<script>document.getElementById("'. $ID_TABLE. '-A4").innerHTML = "New text!";</script>';
 ?>
