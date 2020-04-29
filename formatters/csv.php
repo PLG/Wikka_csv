@@ -6,41 +6,41 @@
 ini_set('display_errors', 'On');
 error_reporting(E_ALL | E_STRICT);
 
-if (!function_exists('rndw')) {
-	function rndw($length=4) {
-		return substr(str_shuffle("qwertyuiopasdfghjklzxcvbnm"),0,$length);
-	}
-}
+$rndw= function ($length=4) {
+	return substr(str_shuffle("qwertyuiopasdfghjklzxcvbnm"),0,$length);
+};
 
-//TODO:
-$tmp= '.,2'; #,###.###
-$currency_grouping= '\.';
-$currency_decimal= '\,';
-$currency_places= 2;
+$currency_formats['US']= array('\,', '\.', 2);
+$currency_formats['SE']= array('\.', '\,', 2);
 
+$selected_formats= array('US','SE');
+
+if (!defined('ERROR'))					define('ERROR', 'error');
 if (!defined('PATTERN_ARGUMENT'))		define('PATTERN_ARGUMENT', '(?:;([^;\)\x01-\x1f\*\?"<>\|]*))?');
 if (!defined('PATTERN_CSS_DEFINITION'))	define('PATTERN_CSS_DEFINITION', '#!\s*(table, th, td|th, td|t[hrd](?:\.\w*)?|(?:\.\w*))\s*(\{.*\})');
-if (!defined('PATTERN_CURRENCY'))		define('PATTERN_CURRENCY', '([+-]?)(\d{1,3}(?:'. $currency_grouping .'\d{3})*|(?:\d+))(?:'. $currency_decimal .'(\d{'. $currency_places .'}))?');
 
-//TODO:
-if (!function_exists('parse_currency')) {
-	function parse_currency($cell, $grouping) 
+//if (!function_exists('parse_currency')) { } // doesn't see global scope variables, support 'static'
+// https://www.php.net/manual/en/functions.anonymous.php
+//
+$parse_currency= function ($cell) use (&$currency_formats, &$selected_formats) 
+{
+	foreach ($selected_formats as $format)
 	{
-		if (preg_match('/^'.PATTERN_CURRENCY.'$/', $cell, $a_currency))
-		{
-			//TODO:
-			$format= 'US';
+		list($grouping, $decimal, $places)= $currency_formats[$format];
+		$PATTERN_CURRENCY= '([+-]?)(\d{1,3}(?:'. $grouping .'\d{3})*|(?:\d+))(?:'. $decimal .'(\d{'. $places .'}))?';
 
+		if (preg_match('/^'.$PATTERN_CURRENCY.'$/', $cell, $a_currency))
+		{
 			$cell= $a_currency[1] . preg_replace('/'.$grouping.'/', '', $a_currency[2]);
 			if ( isset($a_currency[3]) )
 				$cell.= '.'. $a_currency[3];
 
-			return floatval( $cell );
+			return array(true, floatval($cell), $format);
 		}
-
-		return "ERROR!";
 	}
-}
+
+	return array(false, $cell, 'ERR');
+};
 
 if (preg_match('/^'.PATTERN_ARGUMENT.PATTERN_ARGUMENT.PATTERN_ARGUMENT.'$/su', ';'.$format_option, $args))
 	list(, $arg1, $arg2, $arg3) = $args;
@@ -62,7 +62,7 @@ $regex_escaped_delim='\\\\'. $delim .'';
 
 $array_csv_lines= preg_split("/[\n]/", $text);
 
-$table_id= rndw(23);
+$table_id= $rndw(23);
 
 // https://stackoverflow.com/questions/1028248/how-to-combine-class-and-id-in-css-selector
 //$css['table, th, td']= '{ border: 1px solid black; border-collapse: collapse; }';
@@ -140,8 +140,8 @@ foreach ($array_csv_lines as $row => $csv_line)
 
 			if (0 == strcmp($title, '++TOTAL++'))
 			{
-				if (( isset($total_col[$col])  && 0 != strcmp($total_col[$col],"ERROR!") )
-				xor ( isset($total_row[$row])  && 0 != strcmp($total_row[$row],"ERROR!") ))
+				if (( isset($total_col[$col]) && !$total_col[ERROR] )
+				xor ( isset($total_row[$row]) && !$total_row[ERROR] ))
 				{
 					if ( isset($total_col[$col]) ) {
 						print '<th class="total row'. $row .' col'. $col .'" >'. sprintf("%0.2f", $total_col[$col]) .'</th>';
@@ -157,8 +157,11 @@ foreach ($array_csv_lines as $row => $csv_line)
 
 				print '<th class="warning total row'. $row .' col'. $col .'" >ERROR!</th>';
 
-				unset($total_col[$col]);
-				unset($total_row[$row]);
+				if ( isset($total_col[$col]) )
+					unset($total_col[$col]);
+
+				if ( isset($total_row[$row]) ) 
+					unset($total_row[$row]);
 
 				continue;
 			}
@@ -166,10 +169,12 @@ foreach ($array_csv_lines as $row => $csv_line)
 			if (preg_match('/^(.*)\s*([+#])\2$/', $title, $a_accum)) {
 				$title= $a_accum[1];
 				$total_col[$col]= 0;
+				$total_col[ERROR]= false;
 			}
 			elseif (preg_match('/^([+#])\1(.*)\s*$/', $title, $a_accum)) {
 				$title= $a_accum[2];
 				$total_row[$row]= 0;
+				$total_row[ERROR]= false;
 			}
 
 			print '<th class="row'. $row .' col'. $col .'" >'. $this->htmlspecialchars_ent($title) .'</th>';
@@ -197,38 +202,30 @@ foreach ($array_csv_lines as $row => $csv_line)
 		if ( isset($total_col[$col]) || isset($total_row[$row]) )
 		{
 			$title= $cell;
+			list($success, $nr, $format)= $parse_currency($cell);
 
-			//$nr= parse_currency($cell, $currency_grouping);
-			//var_dump($nr);
-
-			if (preg_match('/^'.PATTERN_CURRENCY.'$/', $cell, $a_currency))
+			if ( isset($total_col[$col]) && !$total_col[ERROR] )
 			{
-				//TODO:
-				$format= 'US';
-
-				$cell= $a_currency[1] . preg_replace('/'.$currency_grouping.'/', '', $a_currency[2]);
-				if ( isset($a_currency[3]) )
-					$cell.= '.'. $a_currency[3];
-
-				$nr= floatval( $cell );
-
-				if ( isset($total_col[$col]) && 0 != strcmp($total_col[$col],"ERROR!") )
+				if ($success)
 					$total_col[$col]+= $nr;
+				else
+					$total_col[ERROR]= true;
+			}
 
-				if ( isset($total_row[$row]) && 0 != strcmp($total_row[$row],"ERROR!") )
+			if ( isset($total_row[$row]) && !$total_row[ERROR] )
+			{
+				if ($success)
 					$total_row[$row]+= $nr;
+				else
+					$total_row[ERROR]= true;
+			}
 
-				print '<td class="'. (($nr <= 0) ? 'warning' : '' ) .' row'.$row .' col'.$col .'" title="'. $title .'('. $format .')" >'. sprintf('%0.2f', $nr) .'</td>';
+			if (!$success)	{
+				print '<td class="warning row'.$row .' col'.$col .'" title="'. $title .'('. $format .')" >ERROR!</td>';
 				continue;
 			}
 
-			if ( isset($total_col[$col]) )
-				$total_col[$col]= "ERROR!";
-
-			if ( isset($total_row[$row]) )
-				$total_row[$row]= "ERROR!";
-
-			print '<td class="warning row'.$row .' col'.$col .'" title="'. $title .'(ERR)" >ERROR!</td>';
+			print '<td class="'. (($nr <= 0) ? 'warning' : '' ) .' row'.$row .' col'.$col .'" title="'. $title .'('. $format .')" >'. sprintf('%0.2f', $nr) .'</td>';
 			continue;
 		}
 
