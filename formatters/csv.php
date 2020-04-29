@@ -19,7 +19,7 @@ $currency_decimal= '\,';
 $currency_places= 2;
 
 if (!defined('PATTERN_ARGUMENT'))		define('PATTERN_ARGUMENT', '(?:;([^;\)\x01-\x1f\*\?"<>\|]*))?');
-if (!defined('PATTERN_CSS_DEFINITION'))	define('PATTERN_CSS_DEFINITION', '#!\s*(t[hrd](?:\.\w*)?|(?:\.\w*))\s*(\{.*\})');
+if (!defined('PATTERN_CSS_DEFINITION'))	define('PATTERN_CSS_DEFINITION', '#!\s*(table, th, td|th, td|t[hrd](?:\.\w*)?|(?:\.\w*))\s*(\{.*\})');
 if (!defined('PATTERN_CURRENCY'))		define('PATTERN_CURRENCY', '([+-]?)(\d{1,3}(?:'. $currency_grouping .'\d{3})*|(?:\d+))(?:'. $currency_decimal .'(\d{'. $currency_places .'}))?');
 
 //TODO:
@@ -65,12 +65,13 @@ $array_csv_lines= preg_split("/[\n]/", $text);
 $table_id= rndw(23);
 
 // https://stackoverflow.com/questions/1028248/how-to-combine-class-and-id-in-css-selector
-//TODO: table, th, td { border: 1px solid black; border-collapse: collapse; }
+//$css['table, th, td']= '{ border: 1px solid black; border-collapse: collapse; }';
 $css['th, td']= '{ padding: 1px 10px 1px 10px; }';
 $css['th']= '{ background-color:#ccc; }'; 
 $css['tr.even']= '{ background-color:#ffe; }';
 $css['tr.odd']= '{ background-color:#eee; }';
 $css['.warning']= '{ background-color:#f00; }';
+$css['.total']= '{ border: 1px solid black; border-collapse: collapse; }';
 
 foreach ($array_csv_lines as $row => $csv_line) 
 {
@@ -93,8 +94,12 @@ foreach ($array_csv_lines as $row => $csv_line)
 }
 
 print "<style>\n";
-foreach ($css as $key => $rule)
-	print '#'. $table_id .' '. $key .' '. $rule ."\n";
+foreach ($css as $key => $rule) 
+{
+	foreach (explode(',', $key) as $tag) 
+		$key= preg_replace('/'.trim($tag).'/', '#'.$table_id.' '.trim($tag), $key);
+	print $key .' '. $rule ."\n";
+}
 print "</style>\n";
 
 $comments= 0;
@@ -139,18 +144,18 @@ foreach ($array_csv_lines as $row => $csv_line)
 				xor ( isset($total_row[$row])  && 0 != strcmp($total_row[$row],"ERROR!") ))
 				{
 					if ( isset($total_col[$col]) ) {
-						print '<th class="row'. $row .' col'. $col .'" >'. sprintf("%0.2f", $total_col[$col]) .'</th>';
+						print '<th class="total row'. $row .' col'. $col .'" >'. sprintf("%0.2f", $total_col[$col]) .'</th>';
 						unset($total_col[$col]);
 					}
 					else { // if ( isset($total_row[$row]) ) // because its xor
-						print '<th class="row'. $row .' col'. $col .'" >'. sprintf("%0.2f", $total_row[$row]) .'</th>';
+						print '<th class="total row'. $row .' col'. $col .'" >'. sprintf("%0.2f", $total_row[$row]) .'</th>';
 						unset($total_row[$row]);
 					}
 
 					continue;
 				}
 
-				print '<th class="warning row'. $row .' col'. $col .'" >ERROR!</th>';
+				print '<th class="warning total row'. $row .' col'. $col .'" >ERROR!</th>';
 
 				unset($total_col[$col]);
 				unset($total_row[$row]);
