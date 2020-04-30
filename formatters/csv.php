@@ -13,7 +13,8 @@ error_reporting(E_ALL | E_STRICT);
 
 if (!defined('ERROR'))					define('ERROR', 'error');
 if (!defined('PATTERN_ARGUMENT'))		define('PATTERN_ARGUMENT', '(?:;([^;\)\x01-\x1f\*\?"<>\|]*))?');
-if (!defined('PATTERN_SPILL_GROUP')) define('PATTERN_SPILL_GROUP', '([^\)]*)');
+if (!defined('PATTERN_SPILL_GROUP'))	define('PATTERN_SPILL_GROUP', '([^\)]*)');
+if (!defined('PATTERN_CURRENCY_FORMAT')) define('PATTERN_CURRENCY_FORMAT', '\'((?:US|SE)(?:,\s*(?:US|SE))*)\'');
 if (!defined('PATTERN_CSS_DEFINITION'))	define('PATTERN_CSS_DEFINITION', '#!\s*(table, th, td|th, td|t[hrd](?:\.\w*)?|(?:\.\w*))\s*(\{.*\})');
 
 if (preg_match('/^'.PATTERN_ARGUMENT.PATTERN_ARGUMENT.PATTERN_ARGUMENT.PATTERN_ARGUMENT.PATTERN_SPILL_GROUP.'$/su', ';'.$format_option, $args))
@@ -33,10 +34,12 @@ $comments= 0;
 
 //---------------------------------------------------------------------------------------------------------------------
 
-$currency_formats['US']= array('\,', '\.', 2);
-$currency_formats['SE']= array('\.', '\,', 2);
+$currency_formats['US']= array(',', '\.', 2);
+$currency_formats['SE']= array('\.', ',', 2);
 
-$selected_formats= array('US','SE');
+$selected_formats= array('US');
+if (preg_match('/^'.PATTERN_CURRENCY_FORMAT.'$/', $arg3, $a_selected))
+	$selected_formats= explode(',', $a_selected[1]);
 
 //if (!function_exists('parse_currency')) { } // doesn't see global scope variables, support 'static'
 // https://www.php.net/manual/en/functions.anonymous.php
@@ -45,7 +48,7 @@ $parse_currency= function ($cell) use (&$currency_formats, &$selected_formats)
 {
 	foreach ($selected_formats as $format)
 	{
-		list($grouping, $decimal, $places)= $currency_formats[$format];
+		list($grouping, $decimal, $places)= $currency_formats[trim($format)];
 		$PATTERN_CURRENCY= '([+-]?)(\d{1,3}(?:'. $grouping .'\d{3})*|(?:\d+))(?:'. $decimal .'(\d{'. $places .'}))?';
 
 		if (preg_match('/^'.$PATTERN_CURRENCY.'$/', $cell, $a_currency))
