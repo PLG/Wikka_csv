@@ -289,3 +289,51 @@ foreach ($ARRAY_CSV_LINES as $csv_row => $csv_line)
 }
 print "</table>\n";
 ?>
+<script>
+// https://www.w3schools.com/js/js_htmldom_html.asp
+// https://playcode.io/
+
+// https://stackoverflow.com/questions/6134039/format-number-to-always-show-2-decimal-places
+function round(value, decimals) {
+    return Number(Math.round(value +'e'+ decimals) +'e-'+ decimals); //.toFixed(decimals); returns string
+}
+
+function percent(value, decimals) {
+    return Number(Math.round(value +'e'+ decimals)); //.toFixed(decimals); returns string
+}
+
+income_KiM= document.getElementById("<?php print $ID_TABLE ?>-B1").innerHTML;
+income_Emma= document.getElementById("<?php print $ID_TABLE ?>-B2").innerHTML;
+income_total= document.getElementById("<?php print $ID_TABLE ?>-B4").innerHTML;
+
+document.getElementById("<?php print $ID_TABLE ?>-C1").innerHTML= income_KiM+"/"+income_total+"=";
+document.getElementById("<?php print $ID_TABLE ?>-C2").innerHTML= income_Emma+"/"+income_total+"=";
+
+share_KiM= income_KiM/income_total;
+share_Emma= income_Emma/income_total;
+
+document.getElementById("<?php print $ID_TABLE ?>-D1").innerHTML= share_KiM;
+document.getElementById("<?php print $ID_TABLE ?>-D2").innerHTML= share_Emma;
+
+spent_KiM= document.getElementById("<?php print $ID_TABLE ?>-E1").innerHTML;
+spent_Emma= document.getElementById("<?php print $ID_TABLE ?>-E2").innerHTML;
+spent_Sambo= document.getElementById("<?php print $ID_TABLE ?>-E3").innerHTML;
+spent_total= document.getElementById("<?php print $ID_TABLE ?>-E4").innerHTML;
+
+document.getElementById("<?php print $ID_TABLE ?>-F1").innerHTML= spent_total+" * "+percent(share_KiM,2)+"%=";
+document.getElementById("<?php print $ID_TABLE ?>-F2").innerHTML= spent_total+" * "+percent(share_Emma,2)+"%=";
+
+percent_share_KiM= spent_total*round(share_KiM,2);
+percent_share_Emma= spent_total*round(share_Emma,2);
+
+document.getElementById("<?php print $ID_TABLE ?>-G1").innerHTML= round(percent_share_KiM,2)+" - "+spent_KiM +"=";
+document.getElementById("<?php print $ID_TABLE ?>-G2").innerHTML= round(percent_share_Emma,2)+" - "+spent_Emma +"=";
+
+cost_KiM= percent_share_KiM-spent_KiM;
+cost_Emma= percent_share_Emma-spent_Emma;
+
+document.getElementById("<?php print $ID_TABLE ?>-H1").innerHTML= round(cost_KiM,2);
+document.getElementById("<?php print $ID_TABLE ?>-H2").innerHTML= round(cost_Emma,2);
+document.getElementById("<?php print $ID_TABLE ?>-H3").innerHTML= -spent_Sambo;
+
+</script>
