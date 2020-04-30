@@ -298,42 +298,53 @@ function round(value, decimals) {
     return Number(Math.round(value +'e'+ decimals) +'e-'+ decimals); //.toFixed(decimals); returns string
 }
 
-function percent(value, decimals) {
-    return Number(Math.round(value +'e'+ decimals)); //.toFixed(decimals); returns string
-}
+var B1= document.getElementById("<?php print $ID_TABLE ?>-B1").innerHTML; // income_KiM
+var B2= document.getElementById("<?php print $ID_TABLE ?>-B2").innerHTML; // income_Emma
+var B4= document.getElementById("<?php print $ID_TABLE ?>-B4").innerHTML; // income_total
+var E1= document.getElementById("<?php print $ID_TABLE ?>-E1").innerHTML; // spent_KiM
+var E2= document.getElementById("<?php print $ID_TABLE ?>-E2").innerHTML; // spent_Emma
+var E3= document.getElementById("<?php print $ID_TABLE ?>-E3").innerHTML; // spent_Sambo
+var E4= document.getElementById("<?php print $ID_TABLE ?>-E4").innerHTML; // spent_total
 
-income_KiM= document.getElementById("<?php print $ID_TABLE ?>-B1").innerHTML;
-income_Emma= document.getElementById("<?php print $ID_TABLE ?>-B2").innerHTML;
-income_total= document.getElementById("<?php print $ID_TABLE ?>-B4").innerHTML;
+sK= B1/B4; ssK= B1+"/"+B4+"=";
+sE= B2/B4; ssE= B2+"/"+B4+"=";
+C1= ssK;
+C2= ssE;
+D1= sK;
+D2= sE;
 
-document.getElementById("<?php print $ID_TABLE ?>-C1").innerHTML= income_KiM+"/"+income_total+"=";
-document.getElementById("<?php print $ID_TABLE ?>-C2").innerHTML= income_Emma+"/"+income_total+"=";
+// https://stackoverflow.com/questions/1435975/how-can-i-round-down-a-number-in-javascript
+kK= E4*D1;
+kE= E4*D2;
+rpK= D1*100 | 0;
+rpE= D2*100 | 0;
+skK= E4+" * "+rpK+"%=";
+skE= E4+" * "+rpE+"%=";
+F1= skK;
+F2= skE;
+i100kK= kK*100+0.5 | 0; // 18935.549929676512
+i100kE= kE*100+0.5 | 0; // 14722.39007032349
+dkK= i100kK/100;
+dkE= i100kE/100;
+tK= dkK-E1; // -6634.389999999999
+tE= dkE-E2; // 12430.39
+stK= dkK+" - "+E1+"=";
+stE= dkE+" - "+E2+"=";
+G1= stK;
+G2= stE;
+H1= Math.round(tK*100)/100;
+H2= Math.round(tE*100)/100;
+H3= -E3;
 
-share_KiM= income_KiM/income_total;
-share_Emma= income_Emma/income_total;
-
-document.getElementById("<?php print $ID_TABLE ?>-D1").innerHTML= share_KiM;
-document.getElementById("<?php print $ID_TABLE ?>-D2").innerHTML= share_Emma;
-
-spent_KiM= document.getElementById("<?php print $ID_TABLE ?>-E1").innerHTML;
-spent_Emma= document.getElementById("<?php print $ID_TABLE ?>-E2").innerHTML;
-spent_Sambo= document.getElementById("<?php print $ID_TABLE ?>-E3").innerHTML;
-spent_total= document.getElementById("<?php print $ID_TABLE ?>-E4").innerHTML;
-
-document.getElementById("<?php print $ID_TABLE ?>-F1").innerHTML= spent_total+" * "+percent(share_KiM,2)+"%=";
-document.getElementById("<?php print $ID_TABLE ?>-F2").innerHTML= spent_total+" * "+percent(share_Emma,2)+"%=";
-
-percent_share_KiM= spent_total*round(share_KiM,2);
-percent_share_Emma= spent_total*round(share_Emma,2);
-
-document.getElementById("<?php print $ID_TABLE ?>-G1").innerHTML= round(percent_share_KiM,2)+" - "+spent_KiM +"=";
-document.getElementById("<?php print $ID_TABLE ?>-G2").innerHTML= round(percent_share_Emma,2)+" - "+spent_Emma +"=";
-
-cost_KiM= percent_share_KiM-spent_KiM;
-cost_Emma= percent_share_Emma-spent_Emma;
-
-document.getElementById("<?php print $ID_TABLE ?>-H1").innerHTML= round(cost_KiM,2);
-document.getElementById("<?php print $ID_TABLE ?>-H2").innerHTML= round(cost_Emma,2);
-document.getElementById("<?php print $ID_TABLE ?>-H3").innerHTML= -spent_Sambo;
-
+document.getElementById("<?php print $ID_TABLE ?>-C1").innerHTML= C1;
+document.getElementById("<?php print $ID_TABLE ?>-C2").innerHTML= C2;
+document.getElementById("<?php print $ID_TABLE ?>-D1").innerHTML= D1;
+document.getElementById("<?php print $ID_TABLE ?>-D2").innerHTML= D2;
+document.getElementById("<?php print $ID_TABLE ?>-F1").innerHTML= F1;
+document.getElementById("<?php print $ID_TABLE ?>-F2").innerHTML= F2;
+document.getElementById("<?php print $ID_TABLE ?>-G1").innerHTML= G1;
+document.getElementById("<?php print $ID_TABLE ?>-G2").innerHTML= G2;
+document.getElementById("<?php print $ID_TABLE ?>-H1").innerHTML= H1;
+document.getElementById("<?php print $ID_TABLE ?>-H2").innerHTML= H2;
+document.getElementById("<?php print $ID_TABLE ?>-H3").innerHTML= H3;
 </script>
