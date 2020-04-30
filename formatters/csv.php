@@ -8,18 +8,18 @@ error_reporting(E_ALL | E_STRICT);
 
 //---------------------------------------------------------------------------------------------------------------------
 
-if (preg_match('/^'.PATTERN_ARGUMENT.PATTERN_ARGUMENT.PATTERN_ARGUMENT.'$/su', ';'.$format_option, $args))
-	list(, $arg1, $arg2, $arg3) = $args;
-
-$DELIM= ($arg1 == 'semi-colon') ? ';' : ',';
-$ARRAY_CSV_LINES= preg_split("/[\n]/", $text);
-
 // https://www.phpliveregex.com
 // https://www.regular-expressions.info/quickstart.html
 
 if (!defined('ERROR'))					define('ERROR', 'error');
 if (!defined('PATTERN_ARGUMENT'))		define('PATTERN_ARGUMENT', '(?:;([^;\)\x01-\x1f\*\?"<>\|]*))?');
+if (!defined('PATTERN_SPILL_GROUP')) define('PATTERN_SPILL_GROUP', '([^\)]*)');
 if (!defined('PATTERN_CSS_DEFINITION'))	define('PATTERN_CSS_DEFINITION', '#!\s*(table, th, td|th, td|t[hrd](?:\.\w*)?|(?:\.\w*))\s*(\{.*\})');
+
+if (preg_match('/^'.PATTERN_ARGUMENT.PATTERN_ARGUMENT.PATTERN_ARGUMENT.PATTERN_ARGUMENT.PATTERN_SPILL_GROUP.'$/su', ';'.$format_option, $args))
+	list(, $arg1, $arg2, $arg3, $arg4, $invalid) = $args;
+
+$DELIM= ($arg1 == 'semi-colon') ? ';' : ',';
 
 // https://www.rexegg.com/regex-lookarounds.html
 // asserts what precedes the ; is not a backslash \\\\, doesn't account for \\; (escaped backslash semicolon)
@@ -27,6 +27,8 @@ if (!defined('PATTERN_CSS_DEFINITION'))	define('PATTERN_CSS_DEFINITION', '#!\s*(
 //
 $PATTERN_NO_SPLIT_QUOTED_DELIM='(?<!\\\)'. $DELIM .'(?=(?:[^"]*(["])[^"]*\1)*[^"]*$)';
 $PATTERN_ESC_DELIM='\\\\'. $DELIM .'';
+
+$ARRAY_CSV_LINES= preg_split("/[\n]/", $text);
 
 //---------------------------------------------------------------------------------------------------------------------
 
