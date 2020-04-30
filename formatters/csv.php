@@ -198,12 +198,15 @@ foreach ($ARRAY_CSV_LINES as $csv_row => $csv_line)
 		// cell
 
 		$cell_style='';
+		$quotes= '';
 
 		// extract the cell out of it's quotes
 		//
         if (preg_match('/^\s*("?)(.*?)\1\s*$/', $cell, $matches))
 		{
-			if ($matches[1] == '"')
+			$quotes= $matches[1];
+
+			if ($quotes == '"')
 			{
 				$cell_style.= 'white-space:pre; ';
 				$cell= $matches[2];
@@ -214,6 +217,11 @@ foreach ($ARRAY_CSV_LINES as $csv_row => $csv_line)
 
 		if ( isset($total_col[$col]) || isset($total_row[$row]) )
 		{
+			if (trim($cell) == '_') {
+				print '<td id="'. $id .'" class="accu row'.$row .' col'.$col .'" >&nbsp;</td>';
+				continue;
+			}
+
 			$title= $cell;
 			list($success, $nr, $format)= $parse_currency($cell);
 
