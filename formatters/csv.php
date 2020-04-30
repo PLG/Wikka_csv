@@ -29,6 +29,7 @@ $PATTERN_NO_SPLIT_QUOTED_DELIM='(?<!\\\)'. $DELIM .'(?=(?:[^"]*(["])[^"]*\1)*[^"
 $PATTERN_ESC_DELIM='\\\\'. $DELIM .'';
 
 $ARRAY_CSV_LINES= preg_split("/[\n]/", $text);
+$comments= 0;
 
 //---------------------------------------------------------------------------------------------------------------------
 
@@ -91,6 +92,7 @@ foreach ($ARRAY_CSV_LINES as $row => $csv_line)
 		$css[ $a_css[1] ]= $a_css[2];
 
 		unset($ARRAY_CSV_LINES[$row]);
+		$comments++;
 		continue;
 	}
 
@@ -111,17 +113,17 @@ print "</style>\n";
 
 //---------------------------------------------------------------------------------------------------------------------
 
-$comments= 0;
-
 print '<table id="'. $ID_TABLE .'">'. "\n";
-foreach ($ARRAY_CSV_LINES as $row => $csv_line) 
+foreach ($ARRAY_CSV_LINES as $csv_row => $csv_line) 
 {
 	if (preg_match('/^#|^\s*$/',$csv_line)) {
 		$comments++;
 		continue;
 	}
 
-	print (($row+$comments)%2) ? '<tr class="even" >' : '<tr class="odd" >';
+	$row= $csv_row - $comments;
+
+	print ($row %2) ? '<tr class="even" >' : '<tr class="odd" >';
 
 	foreach (preg_split('/'. $PATTERN_NO_SPLIT_QUOTED_DELIM .'/', $csv_line) as $col => $csv_cell)
 	{
