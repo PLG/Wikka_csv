@@ -11,7 +11,6 @@ error_reporting(E_ALL | E_STRICT);
 // https://www.phpliveregex.com
 // https://www.regular-expressions.info/quickstart.html
 
-if (!defined('ERROR'))					define('ERROR', 'error');
 if (!defined('PATTERN_ARGUMENT'))		define('PATTERN_ARGUMENT', '(?:;([^;\)\x01-\x1f\*\?"<>\|]*))?');
 if (!defined('PATTERN_SPILL_GROUP'))	define('PATTERN_SPILL_GROUP', '([^\)]*)');
 if (!defined('PATTERN_CURRENCY_FORMAT')) define('PATTERN_CURRENCY_FORMAT', '\'((?:US|SE)(?:,\s*(?:US|SE))*)\'');
@@ -156,8 +155,8 @@ foreach ($ARRAY_CSV_LINES as $csv_row => $csv_line)
 
 			if (0 == strcmp($title, '++TOTAL++'))
 			{
-				if (( isset($total_col[$col]) && !$total_col[ERROR] )
-				xor ( isset($total_row[$row]) && !$total_row[ERROR] ))
+				if (( isset($total_col[$col]) && !$error_col[$col] )
+				xor ( isset($total_row[$row]) && !$error_row[$row] ))
 				{
 					if ( isset($total_col[$col]) ) {
 						print '<th id="'. $id .'" class="total row'. $row .' col'. $col .'" >'. sprintf("%0.2f", $total_col[$col]) .'</th>';
@@ -185,12 +184,12 @@ foreach ($ARRAY_CSV_LINES as $csv_row => $csv_line)
 			if (preg_match('/^(.*)\s*([+#])\2$/', $title, $a_accum)) {
 				$title= $a_accum[1];
 				$total_col[$col]= 0;
-				$total_col[ERROR]= false;
+				$error_col[$col]= false;
 			}
 			elseif (preg_match('/^([+#])\1(.*)\s*$/', $title, $a_accum)) {
 				$title= $a_accum[2];
 				$total_row[$row]= 0;
-				$total_row[ERROR]= false;
+				$error_row[$row]= false;
 			}
 
 			print '<th id="'. $id .'" class="row'. $row .' col'. $col .'" >'. $this->htmlspecialchars_ent($title) .'</th>';
@@ -228,20 +227,20 @@ foreach ($ARRAY_CSV_LINES as $csv_row => $csv_line)
 			$title= $cell;
 			list($success, $nr, $format)= $parse_currency($cell);
 
-			if ( isset($total_col[$col]) && !$total_col[ERROR] )
+			if ( isset($total_col[$col]) && !$error_col[$col] )
 			{
 				if ($success)
 					$total_col[$col]+= $nr;
 				else
-					$total_col[ERROR]= true;
+					$error_col[$col]= true;
 			}
 
-			if ( isset($total_row[$row]) && !$total_row[ERROR] )
+			if ( isset($total_row[$row]) && !$error_row[$row] )
 			{
 				if ($success)
 					$total_row[$row]+= $nr;
 				else
-					$total_row[ERROR]= true;
+					$error_row[$row]= true;
 			}
 
 			if (!$success)	{
