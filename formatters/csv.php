@@ -3,8 +3,9 @@
 // by OnegWR, May 2005, license GPL http://wikkawiki.org/OnegWRCsv
 // by ThePLG, Apr 2020, license GPL http://wikkawiki.org/PLG-Csv
 
-ini_set('display_errors', 'On');
-error_reporting(E_ALL | E_STRICT);
+// https://blog.teamtreehouse.com/how-to-debug-in-php
+// ini_set('display_errors', 'On');
+// error_reporting(E_ALL | E_STRICT);
 
 //---------------------------------------------------------------------------------------------------------------------
 
@@ -40,9 +41,8 @@ $selected_formats= array('US');
 if (preg_match('/^'.PATTERN_CURRENCY_FORMAT.'$/', $arg3, $a_selected))
 	$selected_formats= explode(',', $a_selected[1]);
 
-//if (!function_exists('parse_currency')) { } // doesn't see global scope variables, support 'static'
 // https://www.php.net/manual/en/functions.anonymous.php
-//
+//if (!function_exists('parse_currency')) { } // doesn't see global scope variables, support 'static'
 $parse_currency= function ($cell) use (&$currency_formats, &$selected_formats) 
 {
 	foreach ($selected_formats as $format)
@@ -288,7 +288,4 @@ foreach ($ARRAY_CSV_LINES as $csv_row => $csv_line)
 
 }
 print "</table>\n";
-
-// https://www.w3schools.com/js/js_htmldom_html.asp
-print '<script>document.getElementById("'. $ID_TABLE. '-A4").innerHTML = "New text!";</script>';
 ?>
