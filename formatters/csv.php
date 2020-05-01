@@ -34,8 +34,8 @@ $comments= 0;
 
 //---------------------------------------------------------------------------------------------------------------------
 
-$currency_formats['US']= array(',', '\.', 2);
-$currency_formats['SE']= array('\.', ',', 2);
+$currency_formats['US']= array(',', '.', 2);
+$currency_formats['SE']= array('.', ',', 2);
 
 $selected_formats= array('US');
 if (preg_match('/^'.PATTERN_CURRENCY_FORMAT.'$/', $arg3, $a_selected))
@@ -48,7 +48,11 @@ $parse_currency= function ($cell) use (&$currency_formats, &$selected_formats)
 	foreach ($selected_formats as $format)
 	{
 		list($grouping, $decimal, $places)= $currency_formats[trim($format)];
-		$PATTERN_CURRENCY= '([+-]?)(\d{1,3}(?:'. $grouping .'\d{3})*|(?:\d+))(?:'. $decimal .'(\d{'. $places .'}))?';
+		
+		if ($grouping == '.') $grouping= '\.';
+		if ($decimal  == '.') $decimal= '\.';
+
+		$PATTERN_CURRENCY= '([+-]?)\s*(\d{1,3}(?:'. $grouping .'\d{3})*|(?:\d+))(?:'. $decimal .'(\d{'. $places .'}))?';
 
 		if (preg_match('/^'.$PATTERN_CURRENCY.'$/', $cell, $a_currency))
 		{
@@ -271,7 +275,7 @@ foreach ($ARRAY_CODE_LINES as $csv_row => $csv_line)
 
 		// test for CamelLink
 		//
-		if (preg_match_all('/\[\[([[:alnum:]]+)\]\]/', $cell, $all_links))
+		if (preg_match_all('/\[\[(.*?)\]\]/', $cell, $all_links))
 		{
 			foreach ($all_links[1] as $i => $camel_link) 
 				$cell = preg_replace('/\[\['. $camel_link .'\]\]/', $this->Link($camel_link), $cell);
@@ -340,7 +344,7 @@ $print_javascript= function () use (&$ARRAY_CODE_LINES, &$ID_TABLE)
 
 		// Escape the Math.fxn() calls, if the line qualifies, then print the unescaped $js_line
 		//
-		$js_esc_math= preg_replace('/Math\.([^\(]*)\(([^\)]*)\)/U', 'Math.\1"\2"', $js_line);
+		$js_esc_math= preg_replace('/(Math\.|Number)([^\(]*)\(([^\)]*)\)/U', '\1\2"\3"', $js_line);
 		if (preg_match('/^[\w=\s\/;+\'"*!|&^%\.-]*$/', $js_esc_math, $a_js)) {
 			print $js_line ."\n";
 			continue;
