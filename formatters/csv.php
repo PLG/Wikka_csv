@@ -15,7 +15,7 @@
 if (!defined('PATTERN_ARGUMENT'))		define('PATTERN_ARGUMENT', '(?:;([^;\)\x01-\x1f\*\?"<>\|]*))?');
 if (!defined('PATTERN_SPILL_GROUP'))	define('PATTERN_SPILL_GROUP', '([^\)]*)');
 if (!defined('PATTERN_CURRENCY_FORMAT')) define('PATTERN_CURRENCY_FORMAT', '\'((?:US|SE)(?:,\s*(?:US|SE))*)\'');
-if (!defined('PATTERN_CSS_DEFINITION'))	define('PATTERN_CSS_DEFINITION', '#!\s*(table, th, td|th, td|t[hrd](?:\.\w*)?|(?:\.\w*))\s*(\{.*\})');
+if (!defined('PATTERN_CSS_DEFINITION'))	define('PATTERN_CSS_DEFINITION', '#!\s*(a(?:\:\w*)?|table, th, td|th, td|t[hrd](?:\.\w*)?|(?:\.\w*))\s*(\{.*\})');
 
 if (preg_match('/^'.PATTERN_ARGUMENT.PATTERN_ARGUMENT.PATTERN_ARGUMENT.PATTERN_ARGUMENT.PATTERN_SPILL_GROUP.'$/su', ';'.$format_option, $args))
 	list(, $arg1, $arg2, $arg3, $arg4, $invalid) = $args;
@@ -86,6 +86,8 @@ $css['tr.even']= '{ background-color:#ffe; }';
 $css['tr.odd']= '{ background-color:#eee; }';
 $css['.warning']= '{ background-color:#f00; }';
 $css['.total']= '{ border: 1px solid black; border-collapse: collapse; }';
+$css['a:link']= '{ color: blue; }';
+$css['a:visited']= '{ color: blue; }';
 
 foreach ($ARRAY_CODE_LINES as $row => $csv_line) 
 {
