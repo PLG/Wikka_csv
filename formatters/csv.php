@@ -134,7 +134,8 @@ foreach ($ARRAY_CODE_LINES as $csv_row => $csv_line)
 
 	foreach (preg_split('/'. $PATTERN_NO_SPLIT_QUOTED_DELIM .'/', $csv_line) as $col => $csv_cell)
 	{
-		$id= $ID_TABLE ."-". $spreadsheet_baseZ($col) . $row;
+		$xl_id= $spreadsheet_baseZ($col) . $row;
+		$id= $ID_TABLE ."-". $xl_id;
 
 		//-------------------------------------------------------------------------------------------------------------
 		// header
@@ -143,9 +144,10 @@ foreach ($ARRAY_CODE_LINES as $csv_row => $csv_line)
 
 		if (preg_match('/^("?)\s*==(.*)==\s*\1$/', $cell, $a_header)) 
 		{
-			$title= trim($a_header[2]);
+			$header= trim($a_header[2]);
+			$header= preg_replace('/(?<!\\\)\$ID/', $xl_id, $header);
 
-			if (preg_match('/([\/\\\\|])(.*)\1$/', $title, $a_align)) 
+			if (preg_match('/([\/\\\\|])(.*)\1$/', $header, $a_align)) 
 			{
 				print "<style>";
 				switch ($a_align[1]) {
@@ -155,27 +157,27 @@ foreach ($ARRAY_CODE_LINES as $csv_row => $csv_line)
 				}
 				print "</style>\n";
 
-				$title= $a_align[2];
+				$header= $a_align[2];
 			}
 
-			if (0 == strcmp($title, '++TOTAL++'))
+			if (0 == strcmp($header, '++TOTAL++'))
 			{
 				if (( isset($total_col[$col]) && !$error_col[$col] )
 				xor ( isset($total_row[$row]) && !$error_row[$row] ))
 				{
 					if ( isset($total_col[$col]) ) {
-						print '<th id="'. $id .'" class="total row'. $row .' col'. $col .'" >'. sprintf("%0.2f", $total_col[$col]) .'</th>';
+						print '<th id="'. $id .'" class="total row'. $row .' col'. $col .'" title="['. $xl_id .']" >'. sprintf("%0.2f", $total_col[$col]) .'</th>';
 						unset($total_col[$col]);
 					}
 					else { // if ( isset($total_row[$row]) ) // because its xor
-						print '<th id="'. $id .'" class="total row'. $row .' col'. $col .'" >'. sprintf("%0.2f", $total_row[$row]) .'</th>';
+						print '<th id="'. $id .'" class="total row'. $row .' col'. $col .'" title="['. $xl_id .']" >'. sprintf("%0.2f", $total_row[$row]) .'</th>';
 						unset($total_row[$row]);
 					}
 
 					continue;
 				}
 
-				print '<th id="'. $id .'" class="warning total row'. $row .' col'. $col .'" >ERROR!</th>';
+				print '<th id="'. $id .'" class="warning total row'. $row .' col'. $col .'" title="['. $xl_id .']" >ERROR!</th>';
 
 				if ( isset($total_col[$col]) )
 					unset($total_col[$col]);
@@ -186,18 +188,18 @@ foreach ($ARRAY_CODE_LINES as $csv_row => $csv_line)
 				continue;
 			}
 
-			if (preg_match('/^(.*)\s*([+#])\2$/', $title, $a_accum)) {
-				$title= $a_accum[1];
+			if (preg_match('/^(.*)\s*([+#])\2$/', $header, $a_accum)) {
+				$header= $a_accum[1];
 				$total_col[$col]= 0;
 				$error_col[$col]= false;
 			}
-			elseif (preg_match('/^([+#])\1(.*)\s*$/', $title, $a_accum)) {
-				$title= $a_accum[2];
+			elseif (preg_match('/^([+#])\1(.*)\s*$/', $header, $a_accum)) {
+				$header= $a_accum[2];
 				$total_row[$row]= 0;
 				$error_row[$row]= false;
 			}
 
-			print '<th id="'. $id .'" class="row'. $row .' col'. $col .'" >'. $this->htmlspecialchars_ent($title) .'</th>';
+			print '<th id="'. $id .'" class="row'. $row .' col'. $col .'" >'. $this->htmlspecialchars_ent($header) .'</th>';
 			continue;
 		}
 
@@ -225,7 +227,7 @@ foreach ($ARRAY_CODE_LINES as $csv_row => $csv_line)
 		if ( isset($total_col[$col]) || isset($total_row[$row]) )
 		{
 			if (trim($cell) == '_') {
-				print '<td id="'. $id .'" class="accu row'.$row .' col'.$col .'" >&nbsp;</td>';
+				print '<td id="'. $id .'" class="accu row'.$row .' col'.$col .'" title="['. $xl_id .']" >&nbsp;</td>';
 				continue;
 			}
 
@@ -249,11 +251,11 @@ foreach ($ARRAY_CODE_LINES as $csv_row => $csv_line)
 			}
 
 			if (!$success)	{
-				print '<td id="'. $id .'" class="accu warning row'.$row .' col'.$col .'" title="'. $title .'('. $format .')" >ERROR!</td>';
+				print '<td id="'. $id .'" class="accu warning row'.$row .' col'.$col .'" title="['. $xl_id .'] '. $title .'('. $format .')" >ERROR!</td>';
 				continue;
 			}
 
-			print '<td id="'. $id .'" class="accu '. (($nr <= 0) ? 'warning' : '' ) .' row'.$row .' col'.$col .'" title="'. $title .'('. $format .')" >'. sprintf('%0.2f', $nr) .'</td>';
+			print '<td id="'. $id .'" class="accu '. (($nr <= 0) ? 'warning' : '' ) .' row'.$row .' col'.$col .'" title="['. $xl_id .'] '. $title .'('. $format .')" >'. sprintf('%0.2f', $nr) .'</td>';
 			continue;
 		}
 
