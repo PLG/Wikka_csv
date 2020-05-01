@@ -29,7 +29,7 @@ $DELIM= ($arg1 == 'semi-colon') ? ';' : ',';
 $PATTERN_NO_SPLIT_QUOTED_DELIM='(?<!\\\)'. $DELIM .'(?=(?:[^"]*(["])[^"]*\1)*[^"]*$)';
 $PATTERN_ESC_DELIM='\\\\'. $DELIM .'';
 
-$ARRAY_CSV_LINES= preg_split("/[\n]/", $text);
+$ARRAY_CODE_LINES= preg_split("/[\n]/", $text);
 $comments= 0;
 
 //---------------------------------------------------------------------------------------------------------------------
@@ -87,19 +87,19 @@ $css['tr.odd']= '{ background-color:#eee; }';
 $css['.warning']= '{ background-color:#f00; }';
 $css['.total']= '{ border: 1px solid black; border-collapse: collapse; }';
 
-foreach ($ARRAY_CSV_LINES as $row => $csv_line) 
+foreach ($ARRAY_CODE_LINES as $row => $csv_line) 
 {
 	if ( preg_match('/^'.PATTERN_CSS_DEFINITION.'$/', $csv_line, $a_css) )
 	{
 		$css[ $a_css[1] ]= $a_css[2];
 
-		unset($ARRAY_CSV_LINES[$row]);
+		unset($ARRAY_CODE_LINES[$row]);
 		$comments++;
 		continue;
 	}
 
 	if (preg_match('/^#/',$csv_line))
-		print "Invalid CSS directive: [". $csv_line ."]\n";
+		print 'ERROR: invalid CSS directive: \''. $csv_line .'\'' ."\n";
 
 	break;
 }
@@ -116,8 +116,13 @@ print "</style>\n";
 //---------------------------------------------------------------------------------------------------------------------
 
 print '<table id="'. $ID_TABLE .'">'. "\n";
-foreach ($ARRAY_CSV_LINES as $csv_row => $csv_line) 
+foreach ($ARRAY_CODE_LINES as $csv_row => $csv_line) 
 {
+	if (preg_match('/^#js!/', $csv_line, $js_line))
+		break;
+
+	unset($ARRAY_CODE_LINES[$csv_row]);
+
 	if (preg_match('/^#|^\s*$/',$csv_line)) {
 		$comments++;
 		continue;
@@ -288,63 +293,65 @@ foreach ($ARRAY_CSV_LINES as $csv_row => $csv_line)
 
 }
 print "</table>\n";
-?>
-<script>
+
+//---------------------------------------------------------------------------------------------------------------------
+
 // https://www.w3schools.com/js/js_htmldom_html.asp
 // https://playcode.io/
 
-// https://stackoverflow.com/questions/6134039/format-number-to-always-show-2-decimal-places
-function round(value, decimals) {
-    return Number(Math.round(value +'e'+ decimals) +'e-'+ decimals); //.toFixed(decimals); returns string
-}
+$print_javascript= function () use (&$ARRAY_CODE_LINES, &$ID_TABLE)
+{
+	$declared_names= array();
+	$assigned_names= array();
+	foreach ($ARRAY_CODE_LINES as $js_line) {
+		if (preg_match_all('/[A-Z]+[\d]+/', $js_line, $a_vars)) 
+			$declared_names= array_merge($declared_names, $a_vars[0]);
+		if (preg_match_all('/([A-Z]+[\d]+)\s*=/', $js_line, $a_vars))
+			$assigned_names= array_merge($assigned_names, $a_vars[1]);
+	}
+	$declared_names= array_unique($declared_names);
+	$assigned_names= array_unique($assigned_names);
+	sort($declared_names);
+	sort($assigned_names);
 
-var B1= document.getElementById("<?php print $ID_TABLE ?>-B1").innerHTML; // income_KiM
-var B2= document.getElementById("<?php print $ID_TABLE ?>-B2").innerHTML; // income_Emma
-var B4= document.getElementById("<?php print $ID_TABLE ?>-B4").innerHTML; // income_total
-var E1= document.getElementById("<?php print $ID_TABLE ?>-E1").innerHTML; // spent_KiM
-var E2= document.getElementById("<?php print $ID_TABLE ?>-E2").innerHTML; // spent_Emma
-var E3= document.getElementById("<?php print $ID_TABLE ?>-E3").innerHTML; // spent_Sambo
-var E4= document.getElementById("<?php print $ID_TABLE ?>-E4").innerHTML; // spent_total
+	// print <script/>
+	//
 
-sK= B1/B4; ssK= B1+"/"+B4+"=";
-sE= B2/B4; ssE= B2+"/"+B4+"=";
-C1= ssK;
-C2= ssE;
-D1= sK;
-D2= sE;
+	print '<script>' ."\n";
+	foreach ($declared_names as $name) 
+		print 'var '. $name .'= document.getElementById("'. $ID_TABLE .'-'. $name .'").innerHTML;' . "\n";
 
-// https://stackoverflow.com/questions/1435975/how-can-i-round-down-a-number-in-javascript
-kK= E4*D1;
-kE= E4*D2;
-rpK= D1*100 | 0;
-rpE= D2*100 | 0;
-skK= E4+" * "+rpK+"%=";
-skE= E4+" * "+rpE+"%=";
-F1= skK;
-F2= skE;
-i100kK= kK*100+0.5 | 0; // 18935.549929676512
-i100kE= kE*100+0.5 | 0; // 14722.39007032349
-dkK= i100kK/100;
-dkE= i100kE/100;
-tK= dkK-E1; // -6634.389999999999
-tE= dkE-E2; // 12430.39
-stK= dkK+" - "+E1+"=";
-stE= dkE+" - "+E2+"=";
-G1= stK;
-G2= stE;
-H1= Math.round(tK*100)/100;
-H2= Math.round(tE*100)/100;
-H3= -E3;
+	foreach ($ARRAY_CODE_LINES as $lnr => $js_line) 
+	{
+		if (!isset($js_line))
+			print "PLGNO";
 
-document.getElementById("<?php print $ID_TABLE ?>-C1").innerHTML= C1;
-document.getElementById("<?php print $ID_TABLE ?>-C2").innerHTML= C2;
-document.getElementById("<?php print $ID_TABLE ?>-D1").innerHTML= D1;
-document.getElementById("<?php print $ID_TABLE ?>-D2").innerHTML= D2;
-document.getElementById("<?php print $ID_TABLE ?>-F1").innerHTML= F1;
-document.getElementById("<?php print $ID_TABLE ?>-F2").innerHTML= F2;
-document.getElementById("<?php print $ID_TABLE ?>-G1").innerHTML= G1;
-document.getElementById("<?php print $ID_TABLE ?>-G2").innerHTML= G2;
-document.getElementById("<?php print $ID_TABLE ?>-H1").innerHTML= H1;
-document.getElementById("<?php print $ID_TABLE ?>-H2").innerHTML= H2;
-document.getElementById("<?php print $ID_TABLE ?>-H3").innerHTML= H3;
-</script>
+		if (!preg_match('/^#js!\s*(.*)$/', $js_line, $a_jscode))
+			break;
+
+		$js_line= $a_jscode[1];
+
+		if (preg_match('/^\s*\/\//', $js_line, $a_jscode))
+			continue;
+
+		// Escape the Math.fxn() calls, if the line qualifies, then print the unescaped $js_line
+		//
+		$js_esc_math= preg_replace('/Math\.([^\(]*)\(([^\)]*)\)/U', 'Math.\1"\2"', $js_line);
+		if (preg_match('/^[\w=\s\/;+\'"*!|&^%\.-]*$/', $js_esc_math, $a_js)) {
+			print $js_line ."\n";
+			continue;
+		}
+		
+		print '</script>' ."\n";
+		print 'ERROR: line '. $lnr .': \''. $js_line .'\'' ."\n";
+		return;
+	}
+
+	foreach ($assigned_names as $name) 
+		print 'document.getElementById("'. $ID_TABLE .'-'. $name .'").innerHTML= '. $name .';' . "\n";
+
+	print '</script>' ."\n";
+};
+
+$print_javascript();
+?>
