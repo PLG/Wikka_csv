@@ -327,7 +327,7 @@ $print_javascript= function () use (&$ARRAY_CODE_LINES, &$ID_TABLE)
 
 	print '<script>' ."\n";
 	foreach ($declared_names as $name) 
-		print 'var '. $name .'= document.getElementById("'. $ID_TABLE .'-'. $name .'").innerHTML;' . "\n";
+		print 'var '. $name .'= ('. $name .'_td= document.getElementById("'. $ID_TABLE .'-'. $name .'")) ? '. $name .'_td.innerHTML : undefined' ."\n";
 
 	foreach ($ARRAY_CODE_LINES as $lnr => $js_line) 
 	{
@@ -356,7 +356,7 @@ $print_javascript= function () use (&$ARRAY_CODE_LINES, &$ID_TABLE)
 	}
 
 	foreach ($assigned_names as $name) 
-		print 'document.getElementById("'. $ID_TABLE .'-'. $name .'").innerHTML= '. $name .';' . "\n";
+		print 'if ('. $name .'_td= document.getElementById("'. $ID_TABLE .'-'. $name .'")) '. $name .'_td.innerHTML= '. $name .';' . "\n";
 
 	print '</script>' ."\n";
 };
