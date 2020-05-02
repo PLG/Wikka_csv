@@ -16,11 +16,21 @@ if (!defined('PATTERN_ARGUMENT'))		define('PATTERN_ARGUMENT', '(?:;([^;\)\x01-\x
 if (!defined('PATTERN_SPILL_GROUP'))	define('PATTERN_SPILL_GROUP', '([^\)]*)');
 if (!defined('PATTERN_CURRENCY_FORMAT')) define('PATTERN_CURRENCY_FORMAT', '\'((?:US|SE)(?:,\s*(?:US|SE))*)\'');
 if (!defined('PATTERN_CSS_DEFINITION'))	define('PATTERN_CSS_DEFINITION', '#!\s*(a(?:\:\w*)?|table, th, td|th, td|t[hrd](?:\.\w*)?|(?:\.\w*))\s*(\{.*\})');
+if (!defined('PATTERN_CSS_IDENTIFIER'))	define('PATTERN_CSS_IDENTIFIER', '-?[_a-zA-Z]+[_a-zA-Z0-9-]*');
 
 if (preg_match('/^'.PATTERN_ARGUMENT.PATTERN_ARGUMENT.PATTERN_ARGUMENT.PATTERN_ARGUMENT.PATTERN_SPILL_GROUP.'$/su', ';'.$format_option, $args))
 	list(, $arg1, $arg2, $arg3, $arg4, $invalid) = $args;
 
 $DELIM= ($arg1 == 'semi-colon') ? ';' : ',';
+
+$rndw= function ($length=4) {
+	return substr(str_shuffle("qwertyuiopasdfghjklzxcvbnm"),0,$length);
+};
+
+$ID_TABLE= $rndw(23);
+$arg2= preg_replace('/^(.*)\..*$/', '\1', $arg2); // should be .csv, but remove any extension
+if (preg_match('/^'.PATTERN_CSS_IDENTIFIER.'$/', $arg2, $a_table_id))
+	$ID_TABLE= $a_table_id[0];
 
 // https://www.rexegg.com/regex-lookarounds.html
 // asserts what precedes the ; is not a backslash \\\\, doesn't account for \\; (escaped backslash semicolon)
@@ -75,12 +85,6 @@ $spreadsheet_baseZ= function ($n) {
         $r = chr($n%26 + 0x41) . $r;
     return $r;
 };
-
-$rndw= function ($length=4) {
-	return substr(str_shuffle("qwertyuiopasdfghjklzxcvbnm"),0,$length);
-};
-
-$ID_TABLE= $rndw(23);
 
 // https://stackoverflow.com/questions/1028248/how-to-combine-class-and-id-in-css-selector
 //$css['table, th, td']= '{ border: 1px solid black; border-collapse: collapse; }';
