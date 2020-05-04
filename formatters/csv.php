@@ -324,34 +324,40 @@ $print_javascript= function () use (&$ARRAY_CODE_LINES, &$ID_TABLE)
 	$assigned_names= array();
 	foreach ($ARRAY_CODE_LINES as $js_line) 
 	{
-		if (preg_match_all('/\$\(\'#'.PATTERN_CSS_IDENTIFIER.'\s*'.PATTERN_XL_ID.'\'\)|'.PATTERN_XL_ID.'/', $js_line, $a_vars)) 
-			$declared_names= array_merge($declared_names, $a_vars[0]);
-		if (preg_match_all('/('.PATTERN_XL_ID.')\s*=/', $js_line, $a_vars))
-			$assigned_names= array_merge($assigned_names, $a_vars[1]);
+		if (preg_match_all('/\$\(\'#('.PATTERN_CSS_IDENTIFIER.')\s*(\w*)\'\)|'.PATTERN_XL_ID.'/', $js_line, $a_vars)) 
+			for($i = 0, $size = count($a_vars[0]); $i < $size; ++$i) 
+			{
+				$name= $a_vars[0][$i];
+				if (empty( $a_vars[1][$i] ))
+					$declared_names[ $name ]= $name;
+				else {
+					$var= '$'. preg_replace('/[-]/', '_', $a_vars[1][$i]) . '_' . $a_vars[2][$i];
+					$declared_names[ $name ]= $var;
+				}
 	}
 
-	$declared_names= array_unique($declared_names);
-	sort($declared_names);
+		if (preg_match_all('/('.PATTERN_XL_ID.')\s*=/', $js_line, $a_vars))
+			foreach ($a_vars[1] as $name)
+				$assigned_names[ $name ]= $name;
+	}
 
-	$assigned_names= array_unique($assigned_names);
-	sort($assigned_names);
+	asort($declared_names);
+	asort($assigned_names);
 
 	// print <script/>
 	//
 
 	// https://www.thoughtco.com/and-in-javascript-2037515
 	print '<script>' . "\n" .'function $(x) { return document.getElementById(x); }'. "\n";
-	foreach ($declared_names as $name) 
+	foreach ($declared_names as $name => $var) 
 	{
-		if (preg_match('/\$\(\'#('.PATTERN_CSS_IDENTIFIER.')\s*('.PATTERN_XL_ID.')\'\)/', $name, $a_css_id))
+		if (preg_match('/\$\(\'#('.PATTERN_CSS_IDENTIFIER.')\s*(\w*)\'\)/', $name, $a_css_id))
 		{
 			$selector= $a_css_id[1] . CSS_ID_DELIM . $a_css_id[2];
-			$var= preg_replace('/[-]/', '_', $a_css_id[1]) . '_' . $a_css_id[2];
-
-			print 'var $'. $var .'= ($'. $var .'_td= $("'. $selector .'")) ? $'. $var .'_td.innerHTML : undefined;' ."\n";
+			print 'var '. $var .'= ('. $var.'_td= $("'. $selector .'")) ? '. $var.'_td.innerHTML : undefined; '. $var.'_td= undefined;' ."\n";
 		}
 		else 
-			print 'var '. $name .'= ('. $name .'_td= $("'. $ID_TABLE .'-'. $name .'")) ? '. $name .'_td.innerHTML : undefined;' ."\n";
+			print 'var '. $name .'= ('. $name.'_td= $("'. $ID_TABLE .'-'. $name .'")) ? '. $name.'_td.innerHTML : undefined; '. $name.'_td= undefined;' ."\n";
 	}
 
 	foreach ($ARRAY_CODE_LINES as $lnr => $js_line) 
@@ -364,12 +370,9 @@ $print_javascript= function () use (&$ARRAY_CODE_LINES, &$ID_TABLE)
 		if (preg_match('/^\s*\/\//', $js, $a_jscode))
 			continue;
 
-		if (preg_match_all('/\$\(\'#('.PATTERN_CSS_IDENTIFIER.')\s*('.PATTERN_XL_ID.')\'\)/', $js, $a_vars)) 
-			for($i = 0, $size = count($a_vars[0]); $i < $size; ++$i) {
-				$selector= $a_vars[0][$i];
-				$var= '$'. preg_replace('/[-]/', '_', $a_vars[1][$i]) . '_' . $a_vars[2][$i];
-				$js= str_replace($selector, $var, $js);
-			}
+		if (preg_match_all('/\$\(\'#'.PATTERN_CSS_IDENTIFIER.'\s*\w*\'\)/', $js, $a_vars)) 
+			foreach ($a_vars[0] as $name)
+				$js= str_replace($name, $declared_names[ $name ], $js);
 
 		// Escape the Math.fxn() calls, if the line qualifies, then print the unescaped $js_line
 		//
@@ -385,7 +388,12 @@ $print_javascript= function () use (&$ARRAY_CODE_LINES, &$ID_TABLE)
 	}
 
 	foreach ($assigned_names as $name) 
-		print 'if ('. $name .'_td= $("'. $ID_TABLE .'-'. $name .'")) '. $name .'_td.innerHTML= '. $name .';' . "\n";
+		print 'if ('. $name.'_td= $("'. $ID_TABLE .'-'. $name .'")) '. $name.'_td.innerHTML= '. $name .'; '. $name.'_td= undefined;' . "\n";
+
+	$output= '';
+	foreach ($declared_names as $name => $var) 
+		$output.= $var .'= ';
+	if (!empty($output)) print $output ."undefined;\n";
 
 	print '</script>' ."\n";
 };
