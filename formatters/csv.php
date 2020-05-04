@@ -335,9 +335,6 @@ $print_javascript= function () use (&$ARRAY_CODE_LINES, &$ID_TABLE)
 
 	foreach ($ARRAY_CODE_LINES as $lnr => $js_line) 
 	{
-		if (!isset($js_line))
-			print "PLGNO";
-
 		if (!preg_match('/^#js!\s*(.*)$/', $js_line, $a_jscode))
 			break;
 
