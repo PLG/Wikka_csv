@@ -14,6 +14,7 @@
 
 if (!defined('PATTERN_ARGUMENT'))		define('PATTERN_ARGUMENT', '(?:;([^;\)\x01-\x1f\*\?"<>\|]*))?');
 if (!defined('PATTERN_SPILL_GROUP'))	define('PATTERN_SPILL_GROUP', '([^\)]*)');
+if (!defined('PATTERN_NO_ESC'))			define('PATTERN_NO_ESC', '(?<!\\\)');
 if (!defined('PATTERN_CURRENCY_FORMAT')) define('PATTERN_CURRENCY_FORMAT', '\'((?:US|SE)(?:,\s*(?:US|SE))*)\'');
 if (!defined('PATTERN_CSS_DEFINITION'))	define('PATTERN_CSS_DEFINITION', '#!\s*(a(?:\:\w*)?|table, th, td|th, td|t[hrd](?:\.\w*)?|(?:\.\w*))\s*(\{.*\})');
 if (!defined('PATTERN_CSS_IDENTIFIER'))	define('PATTERN_CSS_IDENTIFIER', '-?[_a-zA-Z]+[_a-zA-Z0-9-]*');
@@ -36,7 +37,7 @@ if (preg_match('/^'.PATTERN_CSS_IDENTIFIER.'$/', $arg2, $a_table_id))
 // asserts what precedes the ; is not a backslash \\\\, doesn't account for \\; (escaped backslash semicolon)
 // OMFG! https://stackoverflow.com/questions/40479546/how-to-split-on-white-spaces-not-between-quotes
 //
-$PATTERN_NO_SPLIT_QUOTED_DELIM='(?<!\\\)'. $DELIM .'(?=(?:[^"]*(["])[^"]*\1)*[^"]*$)';
+$PATTERN_NO_SPLIT_QUOTED_DELIM= PATTERN_NO_ESC . $DELIM .'(?=(?:[^"]*(["])[^"]*\1)*[^"]*$)';
 $PATTERN_ESC_DELIM='\\\\'. $DELIM .'';
 
 $ARRAY_CODE_LINES= preg_split("/[\n]/", $text);
@@ -147,15 +148,27 @@ foreach ($ARRAY_CODE_LINES as $csv_row => $csv_line)
 		$xl_id= $spreadsheet_baseZ($col) . $row;
 		$id= $ID_TABLE ."-". $xl_id;
 
+		$cell_style='';
+		$quotes= '';
+
+		// extract the cell out of it's quotes
+		//
+        if (preg_match('/^\s*("?)(.*?)\1\s*$/', $csv_cell, $matches))
+		{
+			$quotes= $matches[1];
+			$cell= $matches[2];
+
+			if ($quotes == '"')
+				$cell_style.= 'white-space:pre; ';
+		}
+
 		//-------------------------------------------------------------------------------------------------------------
 		// header
 
-		$cell= trim($csv_cell);
-
-		if (preg_match('/^("?)\s*==(.*)==\s*\1$/', $cell, $a_header)) 
+		if (preg_match('/^\s*==(.*)==\s*$/', $cell, $a_header)) 
 		{
-			$header= trim($a_header[2]);
-			$header= preg_replace('/(?<!\\\)\$ID/', $xl_id, $header);
+			$header= trim($a_header[1]);
+			$header= preg_replace('/'.PATTERN_NO_ESC.'\$ID/', $xl_id, $header);
 
 			if (preg_match('/([\/\\\\|])(.*)\1$/', $header, $a_align)) 
 			{
@@ -198,41 +211,29 @@ foreach ($ARRAY_CODE_LINES as $csv_row => $csv_line)
 				continue;
 			}
 
-			if (preg_match('/^(.*)\s*([+#])\2$/', $header, $a_accum)) {
+			if (preg_match('/^(.*)\s*'.PATTERN_NO_ESC.'([+#])\2$/', $header, $a_accum)) {
 				$header= $a_accum[1];
 				$total_col[$col]= 0;
 				$error_col[$col]= false;
 			}
-			elseif (preg_match('/^([+#])\1(.*)\s*$/', $header, $a_accum)) {
+			elseif (preg_match('/^'.PATTERN_NO_ESC.'([+#])\1(.*)\s*$/', $header, $a_accum)) {
 				$header= $a_accum[2];
 				$total_row[$row]= 0;
 				$error_row[$row]= false;
 			}
 
-			print '<th id="'. $id .'" class="row'. $row .' col'. $col .'" >'. $this->htmlspecialchars_ent($header) .'</th>';
+			if ($quotes != '"')
+				$header= preg_replace('/[\\\](.)/', '\1', $header);
+
+			print '<th id="'. $id .'" class="row'. $row .' col'. $col .'" style="'. $cell_style .'" >'. $this->htmlspecialchars_ent($header) .'</th>';
 			continue;
 		}
 
 		//-------------------------------------------------------------------------------------------------------------
 		// cell
 
-		$cell_style='';
-		$quotes= '';
-
-		// extract the cell out of it's quotes
-		//
-        if (preg_match('/^\s*("?)(.*?)\1\s*$/', $cell, $matches))
-		{
-			$quotes= $matches[1];
-
-			if ($quotes == '"')
-			{
-				$cell_style.= 'white-space:pre; ';
-				$cell= $matches[2];
-			}
-			else
-				$cell= preg_replace('/'. $PATTERN_ESC_DELIM .'/', $DELIM, $matches[2]);
-		}
+		if ($quotes != '"')
+			$cell= preg_replace('/[\\\](.)/', '\1', $cell);
 
 		if ( isset($total_col[$col]) || isset($total_row[$row]) )
 		{
