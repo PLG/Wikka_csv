@@ -16,6 +16,7 @@ if (!defined('PATTERN_ARGUMENT'))		define('PATTERN_ARGUMENT', '(?:;([^;\)\x01-\x
 if (!defined('PATTERN_SPILL_GROUP'))	define('PATTERN_SPILL_GROUP', '([^\)]*)');
 if (!defined('PATTERN_NO_ESC'))			define('PATTERN_NO_ESC', '(?<!\\\)');
 if (!defined('PATTERN_CURRENCY_FORMAT')) define('PATTERN_CURRENCY_FORMAT', '\'((?:US|SE)(?:,\s*(?:US|SE))*)\'');
+//TODO: PATTERN_CSS_DEFINITION is still no broad enough: td#E4 .row4.col3
 if (!defined('PATTERN_CSS_DEFINITION'))	define('PATTERN_CSS_DEFINITION', '#!\s*(a(?:\:\w*)?|table, th, td|th, td|t[hrd](?:\.\w*)?|(?:\.\w*))\s*(\{.*\})');
 if (!defined('PATTERN_CSS_IDENTIFIER'))	define('PATTERN_CSS_IDENTIFIER', '-?[_a-zA-Z]+[_a-zA-Z0-9-]*');
 if (!defined('CSS_ID_DELIM'))			define('CSS_ID_DELIM', '-');
@@ -185,21 +186,23 @@ foreach ($ARRAY_CODE_LINES as $csv_row => $csv_line)
 				$header= $a_align[2];
 			}
 
-			if (preg_match('/(?:!(\w*))?\[\.\.\.\]/', $header, $a_header_t))
+			if (preg_match('/(?:\$(\w*))?\[\.\.\.\]/', $header, $a_header_t))
 			{
+				$var= $a_header_t[1];	
+
 				if (( isset($total_col[$col]) && !$error_col[$col] )
 				xor ( isset($total_row[$row]) && !$error_row[$row] ))
 				{
 					if ( isset($total_col[$col]) ) {
 						print '<th id="'. $id .'" class="total row'. $row .' col'. $col .'" title="['. $xl_id .']" >'. sprintf("%0.2f", $total_col[$col]) .'</th>';
-						if (isset( $a_header_t[1] ))
-							print '<script>var '. $a_header_t[1] .'= '. $total_col[$col] .';</script>';
+						if (isset( $var ))
+							print '<div id="'. $ID_TABLE . CSS_ID_DELIM . $var .'" hidden>'. $total_col[$col] .'</div><script>var '. $var .'= '. $total_col[$col] .';</script>';
 						unset($total_col[$col]);
 					}
 					else { // if ( isset($total_row[$row]) ) // because its xor
 						print '<th id="'. $id .'" class="total row'. $row .' col'. $col .'" title="['. $xl_id .']" >'. sprintf("%0.2f", $total_row[$row]) .'</th>';
-						if (isset( $a_header_t[1] ))
-							print '<script>var '. $a_header_t[1] .'= '. $total_row[$row] .';</script>';
+						if (isset( $var ))
+							print '<div id="'. $ID_TABLE . CSS_ID_DELIM . $var .'" hidden>'. $total_row[$row] .'</div><script>var '. $var .'= '. $total_row[$row] .';</script>';
 						unset($total_row[$row]);
 					}
 
@@ -334,7 +337,7 @@ $print_javascript= function () use (&$ARRAY_CODE_LINES, &$ID_TABLE)
 					$var= '$'. preg_replace('/[-]/', '_', $a_vars[1][$i]) . '_' . $a_vars[2][$i];
 					$declared_names[ $name ]= $var;
 				}
-	}
+			}
 
 		if (preg_match_all('/('.PATTERN_XL_ID.')\s*=/', $js_line, $a_vars))
 			foreach ($a_vars[1] as $name)
@@ -374,6 +377,7 @@ $print_javascript= function () use (&$ARRAY_CODE_LINES, &$ID_TABLE)
 			foreach ($a_vars[0] as $name)
 				$js= str_replace($name, $declared_names[ $name ], $js);
 
+		//TODO: Number(Math.round(spK+'e2')+'e-2').toFixed(2); does this work?
 		// Escape the Math.fxn() calls, if the line qualifies, then print the unescaped $js_line
 		//
 		$js_esc_math= preg_replace('/(Math\.|Number)([^\(]*)\(([^\)]*)\)/U', '\1\2"\3"', $js);
