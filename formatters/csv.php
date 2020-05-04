@@ -17,6 +17,8 @@ if (!defined('PATTERN_SPILL_GROUP'))	define('PATTERN_SPILL_GROUP', '([^\)]*)');
 if (!defined('PATTERN_CURRENCY_FORMAT')) define('PATTERN_CURRENCY_FORMAT', '\'((?:US|SE)(?:,\s*(?:US|SE))*)\'');
 if (!defined('PATTERN_CSS_DEFINITION'))	define('PATTERN_CSS_DEFINITION', '#!\s*(a(?:\:\w*)?|table, th, td|th, td|t[hrd](?:\.\w*)?|(?:\.\w*))\s*(\{.*\})');
 if (!defined('PATTERN_CSS_IDENTIFIER'))	define('PATTERN_CSS_IDENTIFIER', '-?[_a-zA-Z]+[_a-zA-Z0-9-]*');
+if (!defined('CSS_ID_DELIM'))			define('CSS_ID_DELIM', '-');
+if (!defined('PATTERN_XL_ID'))			define('PATTERN_XL_ID', '[A-Z]+[\d]+');
 
 if (preg_match('/^'.PATTERN_ARGUMENT.PATTERN_ARGUMENT.PATTERN_ARGUMENT.PATTERN_ARGUMENT.PATTERN_SPILL_GROUP.'$/su', ';'.$format_option, $args))
 	list(, $arg1, $arg2, $arg3, $arg4, $invalid) = $args;
@@ -145,7 +147,7 @@ foreach ($ARRAY_CODE_LINES as $csv_row => $csv_line)
 	foreach (preg_split('/'. $PATTERN_NO_SPLIT_QUOTED_DELIM .'/', $csv_line) as $col => $csv_cell)
 	{
 		$xl_id= $spreadsheet_baseZ($col) . $row;
-		$id= $ID_TABLE ."-". $xl_id;
+		$id= $ID_TABLE . CSS_ID_DELIM . $xl_id;
 
 		//-------------------------------------------------------------------------------------------------------------
 		// header
@@ -170,17 +172,21 @@ foreach ($ARRAY_CODE_LINES as $csv_row => $csv_line)
 				$header= $a_align[2];
 			}
 
-			if (0 == strcmp($header, '++TOTAL++'))
+			if (preg_match('/(?:!(\w*))?\[\.\.\.\]/', $header, $a_header_t))
 			{
 				if (( isset($total_col[$col]) && !$error_col[$col] )
 				xor ( isset($total_row[$row]) && !$error_row[$row] ))
 				{
 					if ( isset($total_col[$col]) ) {
 						print '<th id="'. $id .'" class="total row'. $row .' col'. $col .'" title="['. $xl_id .']" >'. sprintf("%0.2f", $total_col[$col]) .'</th>';
+						if (isset( $a_header_t[1] ))
+							print '<script>var '. $a_header_t[1] .'= '. $total_col[$col] .';</script>';
 						unset($total_col[$col]);
 					}
 					else { // if ( isset($total_row[$row]) ) // because its xor
 						print '<th id="'. $id .'" class="total row'. $row .' col'. $col .'" title="['. $xl_id .']" >'. sprintf("%0.2f", $total_row[$row]) .'</th>';
+						if (isset( $a_header_t[1] ))
+							print '<script>var '. $a_header_t[1] .'= '. $total_row[$row] .';</script>';
 						unset($total_row[$row]);
 					}
 
@@ -198,6 +204,7 @@ foreach ($ARRAY_CODE_LINES as $csv_row => $csv_line)
 				continue;
 			}
 
+			//TODO: escape
 			if (preg_match('/^(.*)\s*([+#])\2$/', $header, $a_accum)) {
 				$header= $a_accum[1];
 				$total_col[$col]= 0;
@@ -315,15 +322,18 @@ $print_javascript= function () use (&$ARRAY_CODE_LINES, &$ID_TABLE)
 {
 	$declared_names= array();
 	$assigned_names= array();
-	foreach ($ARRAY_CODE_LINES as $js_line) {
-		if (preg_match_all('/[A-Z]+[\d]+/', $js_line, $a_vars)) 
+	foreach ($ARRAY_CODE_LINES as $js_line) 
+	{
+		if (preg_match_all('/\$\(\'#'.PATTERN_CSS_IDENTIFIER.'\s*'.PATTERN_XL_ID.'\'\)|'.PATTERN_XL_ID.'/', $js_line, $a_vars)) 
 			$declared_names= array_merge($declared_names, $a_vars[0]);
-		if (preg_match_all('/([A-Z]+[\d]+)\s*=/', $js_line, $a_vars))
+		if (preg_match_all('/('.PATTERN_XL_ID.')\s*=/', $js_line, $a_vars))
 			$assigned_names= array_merge($assigned_names, $a_vars[1]);
 	}
+
 	$declared_names= array_unique($declared_names);
-	$assigned_names= array_unique($assigned_names);
 	sort($declared_names);
+
+	$assigned_names= array_unique($assigned_names);
 	sort($assigned_names);
 
 	// print <script/>
@@ -332,23 +342,40 @@ $print_javascript= function () use (&$ARRAY_CODE_LINES, &$ID_TABLE)
 	// https://www.thoughtco.com/and-in-javascript-2037515
 	print '<script>' . "\n" .'function $(x) { return document.getElementById(x); }'. "\n";
 	foreach ($declared_names as $name) 
-		print 'var '. $name .'= ('. $name .'_td= $("'. $ID_TABLE .'-'. $name .'")) ? '. $name .'_td.innerHTML : undefined;' ."\n";
+	{
+		if (preg_match('/\$\(\'#('.PATTERN_CSS_IDENTIFIER.')\s*('.PATTERN_XL_ID.')\'\)/', $name, $a_css_id))
+		{
+			$selector= $a_css_id[1] . CSS_ID_DELIM . $a_css_id[2];
+			$var= preg_replace('/[-]/', '_', $a_css_id[1]) . '_' . $a_css_id[2];
+
+			print 'var $'. $var .'= ($'. $var .'_td= $("'. $selector .'")) ? $'. $var .'_td.innerHTML : undefined;' ."\n";
+		}
+		else 
+			print 'var '. $name .'= ('. $name .'_td= $("'. $ID_TABLE .'-'. $name .'")) ? '. $name .'_td.innerHTML : undefined;' ."\n";
+	}
 
 	foreach ($ARRAY_CODE_LINES as $lnr => $js_line) 
 	{
 		if (!preg_match('/^#js!\s*(.*)$/', $js_line, $a_jscode))
 			break;
 
-		$js_line= $a_jscode[1];
+		$js= $a_jscode[1];
 
-		if (preg_match('/^\s*\/\//', $js_line, $a_jscode))
+		if (preg_match('/^\s*\/\//', $js, $a_jscode))
 			continue;
+
+		if (preg_match_all('/\$\(\'#('.PATTERN_CSS_IDENTIFIER.')\s*('.PATTERN_XL_ID.')\'\)/', $js, $a_vars)) 
+			for($i = 0, $size = count($a_vars[0]); $i < $size; ++$i) {
+				$selector= $a_vars[0][$i];
+				$var= '$'. preg_replace('/[-]/', '_', $a_vars[1][$i]) . '_' . $a_vars[2][$i];
+				$js= str_replace($selector, $var, $js);
+			}
 
 		// Escape the Math.fxn() calls, if the line qualifies, then print the unescaped $js_line
 		//
-		$js_esc_math= preg_replace('/(Math\.|Number)([^\(]*)\(([^\)]*)\)/U', '\1\2"\3"', $js_line);
-		if (preg_match('/^[\w=\s\/;+\'"*!|&^%\.-]*$/', $js_esc_math, $a_js)) {
-			print $js_line ."\n";
+		$js_esc_math= preg_replace('/(Math\.|Number)([^\(]*)\(([^\)]*)\)/U', '\1\2"\3"', $js);
+		if (preg_match('/^[\$\w=\s\/;+\'"*!|&^%\.-]*$/', $js_esc_math, $a_js)) {
+			print $js."\n";
 			continue;
 		}
 		
