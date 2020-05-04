@@ -329,9 +329,10 @@ $print_javascript= function () use (&$ARRAY_CODE_LINES, &$ID_TABLE)
 	// print <script/>
 	//
 
-	print '<script>' ."\n";
+	// https://www.thoughtco.com/and-in-javascript-2037515
+	print '<script>' . "\n" .'function $(x) { return document.getElementById(x); }'. "\n";
 	foreach ($declared_names as $name) 
-		print 'var '. $name .'= ('. $name .'_td= document.getElementById("'. $ID_TABLE .'-'. $name .'")) ? '. $name .'_td.innerHTML : undefined' ."\n";
+		print 'var '. $name .'= ('. $name .'_td= $("'. $ID_TABLE .'-'. $name .'")) ? '. $name .'_td.innerHTML : undefined;' ."\n";
 
 	foreach ($ARRAY_CODE_LINES as $lnr => $js_line) 
 	{
@@ -357,7 +358,7 @@ $print_javascript= function () use (&$ARRAY_CODE_LINES, &$ID_TABLE)
 	}
 
 	foreach ($assigned_names as $name) 
-		print 'if ('. $name .'_td= document.getElementById("'. $ID_TABLE .'-'. $name .'")) '. $name .'_td.innerHTML= '. $name .';' . "\n";
+		print 'if ('. $name .'_td= $("'. $ID_TABLE .'-'. $name .'")) '. $name .'_td.innerHTML= '. $name .';' . "\n";
 
 	print '</script>' ."\n";
 };
