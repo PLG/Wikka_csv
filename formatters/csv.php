@@ -137,7 +137,7 @@ foreach ($ARRAY_CODE_LINES as $csv_row => $csv_line)
 
 	unset($ARRAY_CODE_LINES[$csv_row]);
 
-	if (preg_match('/^#|^\s*$/',$csv_line)) {
+	if (preg_match('/^#/',$csv_line)) {
 		$comments++;
 		continue;
 	}
@@ -365,7 +365,7 @@ $print_javascript= function () use (&$ARRAY_CODE_LINES, &$ID_TABLE)
 
 	foreach ($ARRAY_CODE_LINES as $lnr => $js_line) 
 	{
-		if (!preg_match('/^#js!\s*(.*)$/', $js_line, $a_jscode))
+		if (!preg_match('/^#(?:js!)?\s*(.*)$/', $js_line, $a_jscode))
 			break;
 
 		$js= $a_jscode[1];
