@@ -377,10 +377,9 @@ $print_javascript= function () use (&$ARRAY_CODE_LINES, &$ID_TABLE)
 			foreach ($a_vars[0] as $name)
 				$js= str_replace($name, $declared_names[ $name ], $js);
 
-		//TODO: Number(Math.round(spK+'e2')+'e-2').toFixed(2); does this work?
 		// Escape the Math.fxn() calls, if the line qualifies, then print the unescaped $js_line
 		//
-		$js_esc_math= preg_replace('/(Math\.|Number)([^\(]*)\(([^\)]*)\)/U', '\1\2"\3"', $js);
+		$js_esc_math= preg_replace('/(Math\.|Number|toFixed)([^\(]*)\(([^\)]*)\)/U', '\1\2"\3"', $js);
 		if (preg_match('/^[\$\w=\s\/;+\'"*!|&^%\.-]*$/', $js_esc_math, $a_js)) {
 			print $js."\n";
 			continue;
