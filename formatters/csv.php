@@ -280,19 +280,18 @@ foreach ($ARRAY_CODE_LINES as $csv_row => $csv_line)
 					list($replaced, $selector, $var)= $replace_jquery_var($cell);
 
 					print '<script>';
+
 					if ($success)
 						print '$("'. $id .'").innerHTML= Number('. $nr .').toFixed(2); if (t'.$dim.'['.$idx.'] !== undefined) t'.$dim.'['.$idx.']+= Number('. $nr .'); ';
 
 					elseif ($replaced)
 					{
 						print 'var '. $var .'= ('. $var.'_td= $("'. $selector .'")) ? '. $var.'_td.innerHTML : undefined; '. $var.'_td= undefined;' ."\n";
-						print '$("'. $id .'").innerHTML= Number('. $var .').toFixed(2); if ('. $var. ' === undefined) t'.$dim.'['.$idx.']= undefined; else if (t'.$dim.'['.$idx.'] !== undefined) t'.$dim.'['.$idx.']+= Number('. $nr .'); ';
+						print '$("'. $id .'").innerHTML= Number('. $var .').toFixed(2); if ('. $var. ' === undefined) t'.$dim.'['.$idx.']= undefined; else if (t'.$dim.'['.$idx.'] !== undefined) t'.$dim.'['.$idx.']+= Number('. $var .'); ';
 					}
 					else
-					{
 						print 't'.$dim.'['.$idx.']= undefined; ';
-						unset($total[$dim][$idx]);
-					}
+
 					print '</script>';
 				}
 
