@@ -19,6 +19,8 @@ if (!defined('PATTERN_CURRENCY_FORMAT'))	define('PATTERN_CURRENCY_FORMAT', '\'((
 if (!defined('PATTERN_CSS_IDENTIFIER'))		define('PATTERN_CSS_IDENTIFIER', '-?[_a-zA-Z]+[_a-zA-Z0-9-]*');
 if (!defined('PATTERN_CSS_DECLARATION'))	define('PATTERN_CSS_DECLARATION', '(?:a|table|t[hrd])?(?:[:\.#]'.PATTERN_CSS_IDENTIFIER.')*');
 if (!defined('PATTERN_CSS_RULE'))			define('PATTERN_CSS_RULE', '('.PATTERN_CSS_DECLARATION.'(?:,\s*'.PATTERN_CSS_DECLARATION.')*)\s*(\{.*\})');
+if (!defined('PATTERN_VAR'))				define('PATTERN_VAR', '[a-zA-Z_]\w*');
+if (!defined('PATTERN_JQUERY_VAR'))			define('PATTERN_JQUERY_VAR', '\$\(\'#('.PATTERN_CSS_IDENTIFIER.')\s*('.PATTERN_VAR.')\'\)');
 if (!defined('CSS_ID_DELIM'))				define('CSS_ID_DELIM', '-');
 if (!defined('PATTERN_XL_ID'))				define('PATTERN_XL_ID', '[A-Z]+[\d]+');
 
@@ -82,6 +84,18 @@ $parse_currency= function ($cell) use (&$currency_formats, &$selected_formats)
 };
 
 //---------------------------------------------------------------------------------------------------------------------
+
+$replace_jquery_var= function ($name) {
+	if (preg_match('/'.PATTERN_JQUERY_VAR.'/', $name, $a_vars))
+	{
+		$var= '$'. preg_replace('/[-]/', '_', $a_vars[1]) . '_' . $a_vars[2];
+		$selector= $a_vars[1] . CSS_ID_DELIM . $a_vars[2];
+
+		return array(true, $selector, $var);
+	}
+
+	return array(false, '', $name);
+};
 
 // https://stackoverflow.com/questions/3302857/algorithm-to-get-the-excel-like-column-name-of-a-number
 $spreadsheet_baseZ= function ($n) {
@@ -189,20 +203,21 @@ foreach ($ARRAY_CODE_LINES as $csv_row => $csv_line)
 
 			if (preg_match('/(?:\$(\w*))?\[\.\.\.\]/', $header, $a_header_t))
 			{
-				$var= $a_header_t[1];	
-
+				//TODO: should be possible to add totals in a accu 
 				if ( isset($total['col'][$col]) xor isset($total['row'][$row]) )
 				{
 					foreach (array('row' => $row, 'col' => $col) as $dim => $idx)
 						if ( isset($total[$dim][$idx]) ) 
 						{
 							print '<th id="'. $id .'" class="total row'. $row .' col'. $col .'" title="['. $xl_id .']" >ERROR!</th>';
-							print '<script>if (t'.$dim.'['.$idx.'] !== "undefined") $("'. $id .'").innerHTML= t'.$dim.'['.$idx.']; </script>';
+							print '<script>if (t'.$dim.'['.$idx.'] !== undefined) $("'. $id .'").innerHTML= t'.$dim.'['.$idx.']; </script>';
 
-							if (isset( $var ))
+							if (isset( $a_header_t[1] ))
 							{
+								$var= $a_header_t[1];	
+
 								print '<div id="'. $ID_TABLE . CSS_ID_DELIM . $var .'" hidden>ERROR!</div>';
-								print '<script>if (t'.$dim.'['.$idx.'] !== "undefined") $("'. $ID_TABLE . CSS_ID_DELIM . $var .'").innerHTML= t'.$dim.'['.$idx.']; </script>';
+								print '<script>if (t'.$dim.'['.$idx.'] !== undefined) $("'. $ID_TABLE . CSS_ID_DELIM . $var .'").innerHTML= t'.$dim.'['.$idx.']; </script>';
 								print '<script>var $'. $var .'= t'.$dim.'['.$idx.']; </script>';
 							}
 
@@ -224,12 +239,12 @@ foreach ($ARRAY_CODE_LINES as $csv_row => $csv_line)
 			if (preg_match('/^(.*)\s*'.PATTERN_NO_ESC.'([+#])\2$/', $header, $a_accum)) {
 				$header= $a_accum[1];
 				$total['col'][$col]= true;
-				print '<script>var tcol= {'.$col.':0}; </script>';
+				print '<script>tcol['.$col.']= 0; </script>';
 			}
 			elseif (preg_match('/^'.PATTERN_NO_ESC.'([+#])\1(.*)\s*$/', $header, $a_accum)) {
 				$header= $a_accum[2];
 				$total['row'][$row]= true;
-				print '<script>var trow= {'.$row.':0}; </script>';
+				print '<script>trow['.$row.']= 0; </script>';
 			}
 
 			if ($quotes != '"')
@@ -256,29 +271,27 @@ foreach ($ARRAY_CODE_LINES as $csv_row => $csv_line)
 			list($success, $nr, $format)= $parse_currency($cell);
 
 			//TODO: warning color should be in js ... class="accu '. (($nr <= 0) ? 'warning' : '' ) .'"
+			//TODO: currency formatting
 
 			print '<td id="'. $id .'" class="accu '. (($nr <= 0) ? 'warning' : '' ) .' row'.$row .' col'.$col .'" title="['. $xl_id .'] '. $title .'('. $format .')" >ERROR!</td>' ."\n";
 
 			foreach (array('row' => $row, 'col' => $col) as $dim => $idx)
 				if ( isset($total[$dim][$idx]) )
 				{
+					list($replaced, $selector, $var)= $replace_jquery_var($cell);
+
 					print '<script>';
-					if (preg_match('/\$\(\'#('.PATTERN_CSS_IDENTIFIER.')\s*(\w*)\'\)/', $cell, $a_vars))
-					{
-						$var= '$'. preg_replace('/[-]/', '_', $a_vars[1]) . '_' . $a_vars[2];
-						$selector= $a_vars[1] . CSS_ID_DELIM . $a_vars[2];
-						print 'var '. $var .'= ('. $var.'_td= $("'. $selector .'")) ? '. $var.'_td.innerHTML : undefined; '. $var.'_td= undefined;' ."\n";
-						//print '<script>$("'. $id .'").innerHTML= '. $nr .'; if (t'.$dim.'['.$idx.'] !== "undefined") t'.$dim.'['.$idx.']+= '. $nr .'; </script>';
-
-						$success= true;
-						$nr= $var;
-					}
-
 					if ($success)
-						print '$("'. $id .'").innerHTML= '. $nr .'; if (t'.$dim.'['.$idx.'] !== "undefined") t'.$dim.'['.$idx.']+= Number('. $nr .');';
+						print '$("'. $id .'").innerHTML= '. $nr .'; if (t'.$dim.'['.$idx.'] !== undefined) t'.$dim.'['.$idx.']+= Number('. $nr .'); ';
+
+					elseif ($replaced)
+					{
+						print 'var '. $var .'= ('. $var.'_td= $("'. $selector .'")) ? '. $var.'_td.innerHTML : undefined; '. $var.'_td= undefined;' ."\n";
+						print '$("'. $id .'").innerHTML= '. $var .'; if ('. $var. ' === undefined) t'.$dim.'['.$idx.']= undefined; else if (t'.$dim.'['.$idx.'] !== undefined) t'.$dim.'['.$idx.']+= Number('. $nr .'); ';
+					}
 					else
 					{
-						print 't'.$dim.'['.$idx.']= "undefined";';
+						print 't'.$dim.'['.$idx.']= undefined; ';
 						unset($total[$dim][$idx]);
 					}
 					print '</script>';
@@ -329,44 +342,35 @@ print "</table>\n";
 // https://www.w3schools.com/js/js_htmldom_html.asp
 // https://playcode.io/
 
-$print_javascript= function () use (&$ARRAY_CODE_LINES, &$ID_TABLE)
+$print_javascript= function () use (&$replace_jquery_var, &$ARRAY_CODE_LINES, &$ID_TABLE)
 {
 	$declared_names= array();
 	$assigned_names= array();
 	foreach ($ARRAY_CODE_LINES as $js_line) 
 	{
-		if (preg_match_all('/\$\(\'#('.PATTERN_CSS_IDENTIFIER.')\s*(\w*)\'\)|'.PATTERN_XL_ID.'/', $js_line, $a_vars)) 
-			for($i = 0, $size = count($a_vars[0]); $i < $size; ++$i) 
-			{
-				$name= $a_vars[0][$i];
-				if (empty( $a_vars[1][$i] ))
-					$declared_names[ $name ]= $name;
-				else {
-					$var= '$'. preg_replace('/[-]/', '_', $a_vars[1][$i]) . '_' . $a_vars[2][$i];
-					$declared_names[ $name ]= $var;
-				}
-			}
-
+		if (preg_match_all('/'.PATTERN_JQUERY_VAR.'|'.PATTERN_XL_ID.'/', $js_line, $a_vars)) 
+			$declared_names= array_merge($declared_names, $a_vars[0]);
 		if (preg_match_all('/('.PATTERN_XL_ID.')\s*=/', $js_line, $a_vars))
-			foreach ($a_vars[1] as $name)
-				$assigned_names[ $name ]= $name;
+			$assigned_names= array_merge($assigned_names, $a_vars[1]);
 	}
 
-	asort($declared_names);
-	asort($assigned_names);
+	$declared_names= array_unique($declared_names);
+	sort($declared_names);
+
+	$assigned_names= array_unique($assigned_names);
+	sort($assigned_names);
 
 	// print <script/>
 	//
 
 	// https://www.thoughtco.com/and-in-javascript-2037515
 	print '<script>' . "\n";
-	foreach ($declared_names as $name => $var) 
+	foreach ($declared_names as $name) 
 	{
-		if (preg_match('/\$\(\'#('.PATTERN_CSS_IDENTIFIER.')\s*(\w*)\'\)/', $name, $a_vars))
-		{
-			$selector= $a_vars[1] . CSS_ID_DELIM . $a_vars[2];
+		list($replaced, $selector, $var)= $replace_jquery_var($name);
+
+		if ($replaced)
 			print 'var '. $var .'= ('. $var.'_td= $("'. $selector .'")) ? '. $var.'_td.innerHTML : undefined; '. $var.'_td= undefined;' ."\n";
-		}
 		else 
 			print 'var '. $name .'= ('. $name.'_td= $("'. $ID_TABLE .'-'. $name .'")) ? '. $name.'_td.innerHTML : undefined; '. $name.'_td= undefined;' ."\n";
 	}
@@ -381,9 +385,12 @@ $print_javascript= function () use (&$ARRAY_CODE_LINES, &$ID_TABLE)
 		if (preg_match('/^\s*\/\//', $js, $a_jscode))
 			continue;
 
-		if (preg_match_all('/\$\(\'#'.PATTERN_CSS_IDENTIFIER.'\s*\w*\'\)/', $js, $a_vars)) 
+		if (preg_match_all('/'.PATTERN_JQUERY_VAR.'/', $js, $a_vars)) 
 			foreach ($a_vars[0] as $name)
-				$js= str_replace($name, $declared_names[ $name ], $js);
+			{
+				list(,, $var)= $replace_jquery_var($name);
+				$js= str_replace($name, $var, $js);
+			}
 
 		// Escape the Math.fxn() calls, if the line qualifies, then print the unescaped $js_line
 		//
@@ -402,8 +409,15 @@ $print_javascript= function () use (&$ARRAY_CODE_LINES, &$ID_TABLE)
 		print 'if ('. $name.'_td= $("'. $ID_TABLE .'-'. $name .'")) '. $name.'_td.innerHTML= '. $name .'; '. $name.'_td= undefined;' . "\n";
 
 	$output= '';
-	foreach ($declared_names as $name => $var) 
-		$output.= $var .'= ';
+	foreach ($declared_names as $name) 
+	{
+		list($replaced, $selector, $var)= $replace_jquery_var($name);
+
+		if ($replaced)
+			$output.= $var .'= ';
+		else
+			$output.= $name .'= ';
+	}
 	if (!empty($output)) print $output ."undefined;\n";
 
 	print '</script>' ."\n";
