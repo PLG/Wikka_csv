@@ -130,6 +130,7 @@ print "</style>\n";
 //---------------------------------------------------------------------------------------------------------------------
 
 print '<table id="'. $ID_TABLE .'">'. "\n";
+print '<script>var tcol={}; var trow={}; </script>';
 foreach ($ARRAY_CODE_LINES as $csv_row => $csv_line) 
 {
 	if (preg_match('/^#js!/', $csv_line, $js_line))
@@ -190,45 +191,45 @@ foreach ($ARRAY_CODE_LINES as $csv_row => $csv_line)
 			{
 				$var= $a_header_t[1];	
 
-				if (( isset($total_col[$col]) && !$error_col[$col] )
-				xor ( isset($total_row[$row]) && !$error_row[$row] ))
+				if ( isset($total['col'][$col]) xor isset($total['row'][$row]) )
 				{
-					if ( isset($total_col[$col]) ) {
-						print '<th id="'. $id .'" class="total row'. $row .' col'. $col .'" title="['. $xl_id .']" >'. sprintf("%0.2f", $total_col[$col]) .'</th>';
-						if (isset( $var ))
-							print '<div id="'. $ID_TABLE . CSS_ID_DELIM . $var .'" hidden>'. $total_col[$col] .'</div><script>var '. $var .'= '. $total_col[$col] .';</script>';
-						unset($total_col[$col]);
-					}
-					else { // if ( isset($total_row[$row]) ) // because its xor
-						print '<th id="'. $id .'" class="total row'. $row .' col'. $col .'" title="['. $xl_id .']" >'. sprintf("%0.2f", $total_row[$row]) .'</th>';
-						if (isset( $var ))
-							print '<div id="'. $ID_TABLE . CSS_ID_DELIM . $var .'" hidden>'. $total_row[$row] .'</div><script>var '. $var .'= '. $total_row[$row] .';</script>';
-						unset($total_row[$row]);
-					}
+					foreach (array('row' => $row, 'col' => $col) as $dim => $idx)
+						if ( isset($total[$dim][$idx]) ) 
+						{
+							print '<th id="'. $id .'" class="total row'. $row .' col'. $col .'" title="['. $xl_id .']" >ERROR!</th>';
+							print '<script>if (t'.$dim.'['.$idx.'] !== "undefined") document.getElementById("'. $id .'").innerHTML= t'.$dim.'['.$idx.']; </script>';
+
+							if (isset( $var ))
+							{
+								print '<div id="'. $ID_TABLE . CSS_ID_DELIM . $var .'" hidden>ERROR!</div>';
+								print '<script>if (t'.$dim.'['.$idx.'] !== "undefined") document.getElementById("'. $ID_TABLE . CSS_ID_DELIM . $var .'").innerHTML= t'.$dim.'['.$idx.']; </script>';
+								print '<script>var '. $var .'= t'.$dim.'['.$idx.']; </script>';
+							}
+
+							unset($total[$dim][$idx]);
+						}
 
 					continue;
 				}
 
-				print '<th id="'. $id .'" class="warning total row'. $row .' col'. $col .'" title="['. $xl_id .']" >ERROR!</th>';
+				print '<th id="'. $id .'" class="warning total row'. $row .' col'. $col .'" title="['. $xl_id .']" >SYNTAX!</th>';
 
-				if ( isset($total_col[$col]) )
-					unset($total_col[$col]);
-
-				if ( isset($total_row[$row]) ) 
-					unset($total_row[$row]);
+				foreach (array('row' => $row, 'col' => $col) as $dim => $idx)
+					if ( isset($total[$dim][$idx]) )
+						unset($total[$dim][$idx]);
 
 				continue;
 			}
 
 			if (preg_match('/^(.*)\s*'.PATTERN_NO_ESC.'([+#])\2$/', $header, $a_accum)) {
 				$header= $a_accum[1];
-				$total_col[$col]= 0;
-				$error_col[$col]= false;
+				$total['col'][$col]= true;
+				print '<script>var tcol= {'.$col.':0}; </script>';
 			}
 			elseif (preg_match('/^'.PATTERN_NO_ESC.'([+#])\1(.*)\s*$/', $header, $a_accum)) {
 				$header= $a_accum[2];
-				$total_row[$row]= 0;
-				$error_row[$row]= false;
+				$total['row'][$row]= true;
+				print '<script>var trow= {'.$row.':0}; </script>';
 			}
 
 			if ($quotes != '"')
@@ -244,7 +245,7 @@ foreach ($ARRAY_CODE_LINES as $csv_row => $csv_line)
 		if ($quotes != '"')
 			$cell= preg_replace('/[\\\](.)/', '\1', $cell);
 
-		if ( isset($total_col[$col]) || isset($total_row[$row]) )
+		if ( isset($total['col'][$col]) || isset($total['row'][$row]) )
 		{
 			if (trim($cell) == '_') {
 				print '<td id="'. $id .'" class="accu row'.$row .' col'.$col .'" title="['. $xl_id .']" >&nbsp;</td>';
@@ -254,28 +255,28 @@ foreach ($ARRAY_CODE_LINES as $csv_row => $csv_line)
 			$title= $cell;
 			list($success, $nr, $format)= $parse_currency($cell);
 
-			if ( isset($total_col[$col]) && !$error_col[$col] )
-			{
-				if ($success)
-					$total_col[$col]+= $nr;
-				else
-					$error_col[$col]= true;
-			}
+			//TODO: warning color should be in js ... class="accu '. (($nr <= 0) ? 'warning' : '' ) .'"
 
-			if ( isset($total_row[$row]) && !$error_row[$row] )
-			{
-				if ($success)
-					$total_row[$row]+= $nr;
-				else
-					$error_row[$row]= true;
-			}
+			print '<td id="'. $id .'" class="accu '. (($nr <= 0) ? 'warning' : '' ) .' row'.$row .' col'.$col .'" title="['. $xl_id .'] '. $title .'('. $format .')" >ERROR!</td>' ."\n";
 
-			if (!$success)	{
-				print '<td id="'. $id .'" class="accu warning row'.$row .' col'.$col .'" title="['. $xl_id .'] '. $title .'('. $format .')" >ERROR!</td>';
-				continue;
-			}
+			foreach (array('row' => $row, 'col' => $col) as $dim => $idx)
+				if ( isset($total[$dim][$idx]) )
+				{
+					if (preg_match('/\$\(\'#('.PATTERN_CSS_IDENTIFIER.')\s*(\w*)\'\)/', $cell, $a_vars))
+					{
+						$nr= '$'. preg_replace('/[-]/', '_', $a_vars[1]) . '_' . $a_vars[2];
+						$success= true;
+					}
 
-			print '<td id="'. $id .'" class="accu '. (($nr <= 0) ? 'warning' : '' ) .' row'.$row .' col'.$col .'" title="['. $xl_id .'] '. $title .'('. $format .')" >'. sprintf('%0.2f', $nr) .'</td>';
+					if ($success)
+						print '<script>document.getElementById("'. $id .'").innerHTML= '. $nr .'; if (t'.$dim.'['.$idx.'] !== "undefined") t'.$dim.'['.$idx.']+= '. $nr .'; </script>';
+					else
+					{
+						print '<script>t'.$dim.'['.$idx.']= "undefined"; </script>';
+						unset($total[$dim][$idx]);
+					}
+				}
+
 			continue;
 		}
 
