@@ -130,7 +130,7 @@ print "</style>\n";
 //---------------------------------------------------------------------------------------------------------------------
 
 print '<table id="'. $ID_TABLE .'">'. "\n";
-print '<script>var tcol={}; var trow={}; </script>';
+print '<script>function $(x) { return document.getElementById(x); }; var tcol={}; var trow={}; </script>'. "\n";
 foreach ($ARRAY_CODE_LINES as $csv_row => $csv_line) 
 {
 	if (preg_match('/^#js!/', $csv_line, $js_line))
@@ -197,13 +197,13 @@ foreach ($ARRAY_CODE_LINES as $csv_row => $csv_line)
 						if ( isset($total[$dim][$idx]) ) 
 						{
 							print '<th id="'. $id .'" class="total row'. $row .' col'. $col .'" title="['. $xl_id .']" >ERROR!</th>';
-							print '<script>if (t'.$dim.'['.$idx.'] !== "undefined") document.getElementById("'. $id .'").innerHTML= t'.$dim.'['.$idx.']; </script>';
+							print '<script>if (t'.$dim.'['.$idx.'] !== "undefined") $("'. $id .'").innerHTML= t'.$dim.'['.$idx.']; </script>';
 
 							if (isset( $var ))
 							{
 								print '<div id="'. $ID_TABLE . CSS_ID_DELIM . $var .'" hidden>ERROR!</div>';
-								print '<script>if (t'.$dim.'['.$idx.'] !== "undefined") document.getElementById("'. $ID_TABLE . CSS_ID_DELIM . $var .'").innerHTML= t'.$dim.'['.$idx.']; </script>';
-								print '<script>var '. $var .'= t'.$dim.'['.$idx.']; </script>';
+								print '<script>if (t'.$dim.'['.$idx.'] !== "undefined") $("'. $ID_TABLE . CSS_ID_DELIM . $var .'").innerHTML= t'.$dim.'['.$idx.']; </script>';
+								print '<script>var $'. $var .'= t'.$dim.'['.$idx.']; </script>';
 							}
 
 							unset($total[$dim][$idx]);
@@ -262,19 +262,26 @@ foreach ($ARRAY_CODE_LINES as $csv_row => $csv_line)
 			foreach (array('row' => $row, 'col' => $col) as $dim => $idx)
 				if ( isset($total[$dim][$idx]) )
 				{
+					print '<script>';
 					if (preg_match('/\$\(\'#('.PATTERN_CSS_IDENTIFIER.')\s*(\w*)\'\)/', $cell, $a_vars))
 					{
-						$nr= '$'. preg_replace('/[-]/', '_', $a_vars[1]) . '_' . $a_vars[2];
+						$var= '$'. preg_replace('/[-]/', '_', $a_vars[1]) . '_' . $a_vars[2];
+						$selector= $a_vars[1] . CSS_ID_DELIM . $a_vars[2];
+						print 'var '. $var .'= ('. $var.'_td= $("'. $selector .'")) ? '. $var.'_td.innerHTML : undefined; '. $var.'_td= undefined;' ."\n";
+						//print '<script>$("'. $id .'").innerHTML= '. $nr .'; if (t'.$dim.'['.$idx.'] !== "undefined") t'.$dim.'['.$idx.']+= '. $nr .'; </script>';
+
 						$success= true;
+						$nr= $var;
 					}
 
 					if ($success)
-						print '<script>document.getElementById("'. $id .'").innerHTML= '. $nr .'; if (t'.$dim.'['.$idx.'] !== "undefined") t'.$dim.'['.$idx.']+= '. $nr .'; </script>';
+						print '$("'. $id .'").innerHTML= '. $nr .'; if (t'.$dim.'['.$idx.'] !== "undefined") t'.$dim.'['.$idx.']+= Number('. $nr .');';
 					else
 					{
-						print '<script>t'.$dim.'['.$idx.']= "undefined"; </script>';
+						print 't'.$dim.'['.$idx.']= "undefined";';
 						unset($total[$dim][$idx]);
 					}
+					print '</script>';
 				}
 
 			continue;
@@ -352,12 +359,12 @@ $print_javascript= function () use (&$ARRAY_CODE_LINES, &$ID_TABLE)
 	//
 
 	// https://www.thoughtco.com/and-in-javascript-2037515
-	print '<script>' . "\n" .'function $(x) { return document.getElementById(x); }'. "\n";
+	print '<script>' . "\n";
 	foreach ($declared_names as $name => $var) 
 	{
-		if (preg_match('/\$\(\'#('.PATTERN_CSS_IDENTIFIER.')\s*(\w*)\'\)/', $name, $a_css_id))
+		if (preg_match('/\$\(\'#('.PATTERN_CSS_IDENTIFIER.')\s*(\w*)\'\)/', $name, $a_vars))
 		{
-			$selector= $a_css_id[1] . CSS_ID_DELIM . $a_css_id[2];
+			$selector= $a_vars[1] . CSS_ID_DELIM . $a_vars[2];
 			print 'var '. $var .'= ('. $var.'_td= $("'. $selector .'")) ? '. $var.'_td.innerHTML : undefined; '. $var.'_td= undefined;' ."\n";
 		}
 		else 
