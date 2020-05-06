@@ -210,7 +210,7 @@ foreach ($ARRAY_CODE_LINES as $csv_row => $csv_line)
 						if ( isset($total[$dim][$idx]) ) 
 						{
 							print '<th id="'. $id .'" class="total row'. $row .' col'. $col .'" title="['. $xl_id .']" >ERROR!</th>';
-							print '<script>if (t'.$dim.'['.$idx.'] !== undefined) $("'. $id .'").innerHTML= t'.$dim.'['.$idx.']; </script>';
+							print '<script>if (t'.$dim.'['.$idx.'] !== undefined) $("'. $id .'").innerHTML= Number(t'.$dim.'['.$idx.']).toFixed(2); </script>';
 
 							if (isset( $a_header_t[1] ))
 							{
@@ -271,7 +271,6 @@ foreach ($ARRAY_CODE_LINES as $csv_row => $csv_line)
 			list($success, $nr, $format)= $parse_currency($cell);
 
 			//TODO: warning color should be in js ... class="accu '. (($nr <= 0) ? 'warning' : '' ) .'"
-			//TODO: currency formatting
 
 			print '<td id="'. $id .'" class="accu '. (($nr <= 0) ? 'warning' : '' ) .' row'.$row .' col'.$col .'" title="['. $xl_id .'] '. $title .'('. $format .')" >ERROR!</td>' ."\n";
 
@@ -282,12 +281,12 @@ foreach ($ARRAY_CODE_LINES as $csv_row => $csv_line)
 
 					print '<script>';
 					if ($success)
-						print '$("'. $id .'").innerHTML= '. $nr .'; if (t'.$dim.'['.$idx.'] !== undefined) t'.$dim.'['.$idx.']+= Number('. $nr .'); ';
+						print '$("'. $id .'").innerHTML= Number('. $nr .').toFixed(2); if (t'.$dim.'['.$idx.'] !== undefined) t'.$dim.'['.$idx.']+= Number('. $nr .'); ';
 
 					elseif ($replaced)
 					{
 						print 'var '. $var .'= ('. $var.'_td= $("'. $selector .'")) ? '. $var.'_td.innerHTML : undefined; '. $var.'_td= undefined;' ."\n";
-						print '$("'. $id .'").innerHTML= '. $var .'; if ('. $var. ' === undefined) t'.$dim.'['.$idx.']= undefined; else if (t'.$dim.'['.$idx.'] !== undefined) t'.$dim.'['.$idx.']+= Number('. $nr .'); ';
+						print '$("'. $id .'").innerHTML= Number('. $var .').toFixed(2); if ('. $var. ' === undefined) t'.$dim.'['.$idx.']= undefined; else if (t'.$dim.'['.$idx.'] !== undefined) t'.$dim.'['.$idx.']+= Number('. $nr .'); ';
 					}
 					else
 					{
