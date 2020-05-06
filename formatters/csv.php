@@ -284,6 +284,12 @@ foreach ($ARRAY_CODE_LINES as $csv_row => $csv_line)
 					if ($success)
 						print '$("'. $id .'").innerHTML= Number('. $nr .').toFixed(2); if (t'.$dim.'['.$idx.'] !== undefined) t'.$dim.'['.$idx.']+= Number('. $nr .'); ';
 
+					elseif (preg_match('/^\$'.PATTERN_VAR.'$/', $cell, $a_vars))
+					{
+						$var= $a_vars[0];
+						print '$("'. $id .'").innerHTML= Number('. $var .').toFixed(2); if ('. $var. ' === undefined) t'.$dim.'['.$idx.']= undefined; else if (t'.$dim.'['.$idx.'] !== undefined) t'.$dim.'['.$idx.']+= Number('. $var .'); ';
+					}
+
 					elseif ($replaced)
 					{
 						print 'var '. $var .'= ('. $var.'_td= $("'. $selector .'")) ? '. $var.'_td.innerHTML : undefined; '. $var.'_td= undefined;' ."\n";
