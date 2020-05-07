@@ -270,8 +270,6 @@ foreach ($ARRAY_CODE_LINES as $csv_row => $csv_line)
 			$title= $cell;
 			list($success, $nr, $format)= $parse_currency($cell);
 
-			//TODO: warning color should be in js ... class="accu '. (($nr <= 0) ? 'warning' : '' ) .'"
-
 			print '<td id="'. $id .'" class="accu '. (($nr <= 0) ? 'warning' : '' ) .' row'.$row .' col'.$col .'" title="['. $xl_id .'] '. $title .'('. $format .')" >ERROR!</td>' ."\n";
 
 			foreach (array('row' => $row, 'col' => $col) as $dim => $idx)
@@ -287,13 +285,13 @@ foreach ($ARRAY_CODE_LINES as $csv_row => $csv_line)
 					elseif (preg_match('/^\$'.PATTERN_VAR.'$/', $cell, $a_vars))
 					{
 						$var= $a_vars[0];
-						print '$("'. $id .'").innerHTML= Number('. $var .').toFixed(2); if ('. $var. ' === undefined) t'.$dim.'['.$idx.']= undefined; else if (t'.$dim.'['.$idx.'] !== undefined) t'.$dim.'['.$idx.']+= Number('. $var .'); ';
+						print '$("'. $id .'").innerHTML= Number('. $var .').toFixed(2); if ('. $var .' > 0) $("'. $id .'").classList.remove("warning");  if ('. $var. ' === undefined) t'.$dim.'['.$idx.']= undefined; else if (t'.$dim.'['.$idx.'] !== undefined) t'.$dim.'['.$idx.']+= Number('. $var .'); ';
 					}
 
 					elseif ($replaced)
 					{
 						print 'var '. $var .'= ('. $var.'_td= $("'. $selector .'")) ? '. $var.'_td.innerHTML : undefined; '. $var.'_td= undefined;' ."\n";
-						print '$("'. $id .'").innerHTML= Number('. $var .').toFixed(2); if ('. $var. ' === undefined) t'.$dim.'['.$idx.']= undefined; else if (t'.$dim.'['.$idx.'] !== undefined) t'.$dim.'['.$idx.']+= Number('. $var .'); ';
+						print '$("'. $id .'").innerHTML= Number('. $var .').toFixed(2); if ('. $var .' > 0) $("'. $id .'").classList.remove("warning"); if ('. $var. ' === undefined) t'.$dim.'['.$idx.']= undefined; else if (t'.$dim.'['.$idx.'] !== undefined) t'.$dim.'['.$idx.']+= Number('. $var .'); ';
 					}
 					else
 						print 't'.$dim.'['.$idx.']= undefined; ';
