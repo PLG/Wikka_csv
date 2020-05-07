@@ -143,6 +143,7 @@ print "</style>\n";
 
 //---------------------------------------------------------------------------------------------------------------------
 
+$TD_ws= ''; // "\n\t"; 
 $js_script= '';
 
 print '<table id="'. $ID_TABLE .'">'. "\n";
@@ -192,13 +193,13 @@ foreach ($ARRAY_CODE_LINES as $csv_row => $csv_line)
 
 			if (preg_match('/([\/\\\\|])(.*)\1$/', $header, $a_align)) 
 			{
-				print "<style>";
+				print '<style>';
 				switch ($a_align[1]) {
 					case '/' :	print '#'. $ID_TABLE .' .col'. $col .' { text-align:right; }';	break;
 					case '\\' :	print '#'. $ID_TABLE .' .col'. $col .' { text-align:left; }';	break;
 					case '|' :	print '#'. $ID_TABLE .' .col'. $col .' { text-align:center; }';	break;
 				}
-				print "</style>\n";
+				print '</style>';
 
 				$header= $a_align[2];
 			}
@@ -211,7 +212,7 @@ foreach ($ARRAY_CODE_LINES as $csv_row => $csv_line)
 					foreach (array('row' => $row, 'col' => $col) as $dim => $idx)
 						if ( isset($total[$dim][$idx]) ) 
 						{
-							print '<th id="'. $id .'" class="total row'. $row .' col'. $col .'" title="['. $xl_id .']" >ERROR!</th>';
+							print $TD_ws. '<th id="'. $id .'" class="total row'. $row .' col'. $col .'" title="['. $xl_id .']" >ERROR!</th>';
 							$js_script.= 'if (t'.$dim.'['.$idx.'] !== undefined) $("'. $id .'").innerHTML= Number(t'.$dim.'['.$idx.']).toFixed(2); '. "\n";
 
 							if (isset( $a_header_t[1] ))
@@ -229,7 +230,7 @@ foreach ($ARRAY_CODE_LINES as $csv_row => $csv_line)
 					continue;
 				}
 
-				print '<th id="'. $id .'" class="warning total row'. $row .' col'. $col .'" title="['. $xl_id .']" >SYNTAX!</th>';
+				print $TD_ws. '<th id="'. $id .'" class="warning total row'. $row .' col'. $col .'" title="['. $xl_id .']" >SYNTAX!</th>';
 
 				foreach (array('row' => $row, 'col' => $col) as $dim => $idx)
 					if ( isset($total[$dim][$idx]) )
@@ -252,7 +253,7 @@ foreach ($ARRAY_CODE_LINES as $csv_row => $csv_line)
 			if ($quotes != '"')
 				$header= preg_replace('/[\\\](.)/', '\1', $header);
 
-			print '<th id="'. $id .'" class="row'. $row .' col'. $col .'" style="'. $cell_style .'" >'. $this->htmlspecialchars_ent($header) .'</th>';
+			print $TD_ws. '<th id="'. $id .'" class="row'. $row .' col'. $col .'" style="'. $cell_style .'" >'. $this->htmlspecialchars_ent($header) .'</th>';
 			continue;
 		}
 
@@ -265,14 +266,14 @@ foreach ($ARRAY_CODE_LINES as $csv_row => $csv_line)
 		if ( isset($total['col'][$col]) || isset($total['row'][$row]) )
 		{
 			if (trim($cell) == '_') {
-				print '<td id="'. $id .'" class="accu row'.$row .' col'.$col .'" title="['. $xl_id .']" >&nbsp;</td>';
+				print $TD_ws. '<td id="'. $id .'" class="accu row'.$row .' col'.$col .'" title="['. $xl_id .']" >&nbsp;</td>';
 				continue;
 			}
 
 			$title= $cell;
 			list($success, $nr, $format)= $parse_currency($cell);
 
-			print '<td id="'. $id .'" class="accu '. (($nr <= 0) ? 'warning' : '' ) .' row'.$row .' col'.$col .'" title="['. $xl_id .'] '. $title .'('. $format .')" >ERROR!</td>' ."\n";
+			print $TD_ws. '<td id="'. $id .'" class="accu '. (($nr <= 0) ? 'warning' : '' ) .' row'.$row .' col'.$col .'" title="['. $xl_id .'] '. $title .'('. $format .')" >ERROR!</td>';
 
 			foreach (array('row' => $row, 'col' => $col) as $dim => $idx)
 				if ( isset($total[$dim][$idx]) )
@@ -306,7 +307,7 @@ foreach ($ARRAY_CODE_LINES as $csv_row => $csv_line)
 		//
 		if (preg_match('/^\s*$/',$cell)) 
 		{
-			print '<td id="'. $id .'" class="row'. $row .' col'. $col .'" >&nbsp;</td>';
+			print $TD_ws. '<td id="'. $id .'" class="row'. $row .' col'. $col .'" >&nbsp;</td>';
 			continue;
 		}
 
@@ -331,7 +332,7 @@ foreach ($ARRAY_CODE_LINES as $csv_row => $csv_line)
 		else
 			$cell= $this->htmlspecialchars_ent($cell);
 
-		print '<td id="'. $id .'" class="row'. $row .' col'. $col .'" style="'. $cell_style .'" >'. $cell .'</td>';
+		print $TD_ws. '<td id="'. $id .'" class="row'. $row .' col'. $col .'" style="'. $cell_style .'" >'. $cell .'</td>';
 
 	}
 	print "</tr>\n";
