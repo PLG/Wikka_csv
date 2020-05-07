@@ -147,6 +147,7 @@ $TD_ws= ''; // "\n\t";
 $js_script= '';
 
 print '<table id="'. $ID_TABLE .'">'. "\n";
+// https://www.thoughtco.com/and-in-javascript-2037515
 $js_script.= 'function $(x) { return document.getElementById(x); }; var tcol={}; var trow={}; '. "\n";
 foreach ($ARRAY_CODE_LINES as $csv_row => $csv_line) 
 {
@@ -368,7 +369,8 @@ $print_javascript= function () use (&$replace_jquery_var, &$ARRAY_CODE_LINES, &$
 	// print <script/>
 	//
 
-	// https://www.thoughtco.com/and-in-javascript-2037515
+	// declare a variable for each variable declared in a js directive
+	//
 	print '<script>' . "\n";
 	foreach ($declared_names as $name) 
 	{
@@ -380,6 +382,8 @@ $print_javascript= function () use (&$replace_jquery_var, &$ARRAY_CODE_LINES, &$
 			print 'var '. $name .'= ('. $name.'_td= $("'. $ID_TABLE .'-'. $name .'")) ? '. $name.'_td.innerHTML : undefined; '. $name.'_td= undefined;' ."\n";
 	}
 
+	// output each line of code; replace fxns/vars and check allowed characters
+	//
 	foreach ($ARRAY_CODE_LINES as $lnr => $js_line) 
 	{
 		if (!preg_match('/^#(?:js!)?\s*(.*)$/', $js_line, $a_jscode))
@@ -410,9 +414,13 @@ $print_javascript= function () use (&$replace_jquery_var, &$ARRAY_CODE_LINES, &$
 		return;
 	}
 
+	// push results back into html foreach variable assigned in js (with an = sign)
+	//
 	foreach ($assigned_names as $name) 
 		print 'if ('. $name.'_td= $("'. $ID_TABLE .'-'. $name .'")) '. $name.'_td.innerHTML= '. $name .'; '. $name.'_td= undefined;' . "\n";
 
+	// clean-up; undeclare all declared variables 
+	//
 	$output= '';
 	foreach ($declared_names as $name) 
 	{
