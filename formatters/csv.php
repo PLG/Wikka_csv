@@ -143,8 +143,10 @@ print "</style>\n";
 
 //---------------------------------------------------------------------------------------------------------------------
 
+$js_script= '';
+
 print '<table id="'. $ID_TABLE .'">'. "\n";
-print '<script>function $(x) { return document.getElementById(x); }; var tcol={}; var trow={}; </script>'. "\n";
+$js_script.= 'function $(x) { return document.getElementById(x); }; var tcol={}; var trow={}; '. "\n";
 foreach ($ARRAY_CODE_LINES as $csv_row => $csv_line) 
 {
 	if (preg_match('/^#js!/', $csv_line, $js_line))
@@ -210,15 +212,15 @@ foreach ($ARRAY_CODE_LINES as $csv_row => $csv_line)
 						if ( isset($total[$dim][$idx]) ) 
 						{
 							print '<th id="'. $id .'" class="total row'. $row .' col'. $col .'" title="['. $xl_id .']" >ERROR!</th>';
-							print '<script>if (t'.$dim.'['.$idx.'] !== undefined) $("'. $id .'").innerHTML= Number(t'.$dim.'['.$idx.']).toFixed(2); </script>';
+							$js_script.= 'if (t'.$dim.'['.$idx.'] !== undefined) $("'. $id .'").innerHTML= Number(t'.$dim.'['.$idx.']).toFixed(2); '. "\n";
 
 							if (isset( $a_header_t[1] ))
 							{
 								$var= $a_header_t[1];	
 
 								print '<div id="'. $ID_TABLE . CSS_ID_DELIM . $var .'" hidden>ERROR!</div>';
-								print '<script>if (t'.$dim.'['.$idx.'] !== undefined) $("'. $ID_TABLE . CSS_ID_DELIM . $var .'").innerHTML= t'.$dim.'['.$idx.']; </script>';
-								print '<script>var $'. $var .'= t'.$dim.'['.$idx.']; </script>';
+								$js_script.= 'if (t'.$dim.'['.$idx.'] !== undefined) $("'. $ID_TABLE . CSS_ID_DELIM . $var .'").innerHTML= t'.$dim.'['.$idx.']; '. "\n";
+								$js_script.= 'var $'. $var .'= t'.$dim.'['.$idx.']; '. "\n";
 							}
 
 							unset($total[$dim][$idx]);
@@ -239,12 +241,12 @@ foreach ($ARRAY_CODE_LINES as $csv_row => $csv_line)
 			if (preg_match('/^(.*)\s*'.PATTERN_NO_ESC.'([+#])\2$/', $header, $a_accum)) {
 				$header= $a_accum[1];
 				$total['col'][$col]= true;
-				print '<script>tcol['.$col.']= 0; </script>';
+				$js_script.= 'tcol['.$col.']= 0; '. "\n";
 			}
 			elseif (preg_match('/^'.PATTERN_NO_ESC.'([+#])\1(.*)\s*$/', $header, $a_accum)) {
 				$header= $a_accum[2];
 				$total['row'][$row]= true;
-				print '<script>trow['.$row.']= 0; </script>';
+				$js_script.= 'trow['.$row.']= 0; '. "\n";
 			}
 
 			if ($quotes != '"')
@@ -277,26 +279,24 @@ foreach ($ARRAY_CODE_LINES as $csv_row => $csv_line)
 				{
 					list($replaced, $selector, $var)= $replace_jquery_var($cell);
 
-					print '<script>';
-
 					if ($success)
-						print '$("'. $id .'").innerHTML= Number('. $nr .').toFixed(2); if (t'.$dim.'['.$idx.'] !== undefined) t'.$dim.'['.$idx.']+= Number('. $nr .'); ';
+						$js_script.= '$("'. $id .'").innerHTML= Number('. $nr .').toFixed(2); if (t'.$dim.'['.$idx.'] !== undefined) t'.$dim.'['.$idx.']+= Number('. $nr .'); '. "\n";
 
 					elseif (preg_match('/^\$'.PATTERN_VAR.'$/', $cell, $a_vars))
 					{
 						$var= $a_vars[0];
-						print '$("'. $id .'").innerHTML= Number('. $var .').toFixed(2); if ('. $var .' > 0) $("'. $id .'").classList.remove("warning");  if ('. $var. ' === undefined) t'.$dim.'['.$idx.']= undefined; else if (t'.$dim.'['.$idx.'] !== undefined) t'.$dim.'['.$idx.']+= Number('. $var .'); ';
+						$js_script.= '$("'. $id .'").innerHTML= Number('. $var .').toFixed(2); if ('. $var .' > 0) $("'. $id .'").classList.remove("warning"); '. "\n";
+						$js_script.= 'if ('. $var. ' === undefined) t'.$dim.'['.$idx.']= undefined; else if (t'.$dim.'['.$idx.'] !== undefined) t'.$dim.'['.$idx.']+= Number('. $var .'); '. "\n";
 					}
 
 					elseif ($replaced)
 					{
-						print 'var '. $var .'= ('. $var.'_td= $("'. $selector .'")) ? '. $var.'_td.innerHTML : undefined; '. $var.'_td= undefined;' ."\n";
-						print '$("'. $id .'").innerHTML= Number('. $var .').toFixed(2); if ('. $var .' > 0) $("'. $id .'").classList.remove("warning"); if ('. $var. ' === undefined) t'.$dim.'['.$idx.']= undefined; else if (t'.$dim.'['.$idx.'] !== undefined) t'.$dim.'['.$idx.']+= Number('. $var .'); ';
+						$js_script.= 'var '. $var .'= ('. $var.'_td= $("'. $selector .'")) ? '. $var.'_td.innerHTML : undefined; '. $var.'_td= undefined;' ."\n";
+						$js_script.= '$("'. $id .'").innerHTML= Number('. $var .').toFixed(2); if ('. $var .' > 0) $("'. $id .'").classList.remove("warning"); '. "\n";
+						$js_script.= 'if ('. $var. ' === undefined) t'.$dim.'['.$idx.']= undefined; else if (t'.$dim.'['.$idx.'] !== undefined) t'.$dim.'['.$idx.']+= Number('. $var .'); '. "\n";
 					}
 					else
-						print 't'.$dim.'['.$idx.']= undefined; ';
-
-					print '</script>';
+						$js_script.= 't'.$dim.'['.$idx.']= undefined; '. "\n";
 				}
 
 			continue;
@@ -338,6 +338,8 @@ foreach ($ARRAY_CODE_LINES as $csv_row => $csv_line)
 
 }
 print "</table>\n";
+
+print "<script>\n". $js_script ."</script>\n";
 
 //---------------------------------------------------------------------------------------------------------------------
 
