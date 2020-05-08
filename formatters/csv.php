@@ -24,10 +24,22 @@ if (!defined('PATTERN_JQUERY_VAR'))			define('PATTERN_JQUERY_VAR', '\$\(\'#('.PA
 if (!defined('CSS_ID_DELIM'))				define('CSS_ID_DELIM', '-');
 if (!defined('PATTERN_XL_ID'))				define('PATTERN_XL_ID', '[A-Z]+[\d]+');
 
+$pagevars= $this->pagevars;
+// $pagevar_value= $this->GetPageVariable($pagevar_key, ''); // $GLOBALS['wakka']->GetPageVariable(...)
+$replace_pagevars= function($text) use (&$pagevars)
+{
+	foreach ($pagevars as $key => $value)
+		$text= preg_replace('/'.PATTERN_NO_ESC.'\{\$'. $key .'\}/', $value, $text);
+
+	return $text;
+};
+
 if (preg_match('/^'.PATTERN_ARGUMENT.PATTERN_ARGUMENT.PATTERN_ARGUMENT.PATTERN_ARGUMENT.PATTERN_SPILL_GROUP.'$/su', ';'.$format_option, $args))
 	list(, $arg1, $arg2, $arg3, $arg4, $invalid) = $args;
 
 $DELIM= ($arg1 == 'semi-colon') ? ';' : ',';
+$arg2= $replace_pagevars($arg2);
+$arg3= $replace_pagevars($arg3);
 
 $rndw= function ($length=4) {
 	return substr(str_shuffle("qwertyuiopasdfghjklzxcvbnm"),0,$length);
@@ -46,6 +58,9 @@ $PATTERN_NO_SPLIT_QUOTED_DELIM= PATTERN_NO_ESC . $DELIM .'(?=(?:[^"]*(["])[^"]*\
 $PATTERN_ESC_DELIM='\\\\'. $DELIM .'';
 
 $ARRAY_CODE_LINES= preg_split("/[\n]/", $text);
+foreach ($ARRAY_CODE_LINES as $row => $csv_line) 
+	$ARRAY_CODE_LINES[$row]= $replace_pagevars($csv_line);
+
 $comments= 0;
 
 //---------------------------------------------------------------------------------------------------------------------
@@ -85,7 +100,8 @@ $parse_currency= function ($cell) use (&$currency_formats, &$selected_formats)
 
 //---------------------------------------------------------------------------------------------------------------------
 
-$replace_jquery_var= function ($name) {
+$replace_jquery_var= function ($name)
+{
 	if (preg_match('/'.PATTERN_JQUERY_VAR.'/', $name, $a_vars))
 	{
 		$var= '$'. preg_replace('/[-]/', '_', $a_vars[1]) . '_' . $a_vars[2];
