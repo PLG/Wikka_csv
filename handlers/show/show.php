@@ -46,6 +46,10 @@ if (!defined('SHOW_INVALID_CHARS')) define('SHOW_INVALID_CHARS', '| ? = &lt; &gt
 //validate URL parameters
 $raw = (!empty($_GET['raw']))? (int) $this->GetSafeVar('raw', 'get') : SHOW_OLD_REVISION_SOURCE;
 
+// clear in-page variables
+unset($this->pagevars);
+$this->pagevars= array();
+
 echo "\n".'<!--starting page content-->'."\n";
 echo '<div id="content"';
 echo (($user = $this->GetUser()) && ($user['doubleclickedit'] == 'N') || !$this->HasAccess('write')) ? '' : ' ondblclick="document.location=\''.$this->Href('edit', '', 'id='.$this->page['id']).'\';" '; #268
