@@ -222,7 +222,7 @@ foreach ($ARRAY_CODE_LINES as $csv_row => $csv_line)
 				$header= $a_align[2];
 			}
 
-			if (preg_match('/(?:\$(\w*))?\[\.\.\.\]/', $header, $a_header_t))
+			if (preg_match('/^(?:\$(\w*))?\[\.\.\.\]$/', $header, $a_header_t))
 			{
 				//TODO: should be possible to add totals in a accu 
 				if ( isset($total['col'][$col]) xor isset($total['row'][$row]) )
