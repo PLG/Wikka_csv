@@ -15,7 +15,8 @@
 if (!defined('PATTERN_ARGUMENT'))			define('PATTERN_ARGUMENT', '(?:;([^;\)\x01-\x1f\*\?"<>\|]*))?');
 if (!defined('PATTERN_SPILL_GROUP'))		define('PATTERN_SPILL_GROUP', '([^\)]*)');
 if (!defined('PATTERN_NO_ESC'))				define('PATTERN_NO_ESC', '(?<!\\\)');
-if (!defined('PATTERN_CURRENCY_FORMAT'))	define('PATTERN_CURRENCY_FORMAT', '\'((?:US|SE)(?:,\s*(?:US|SE))*)\'');
+if (!defined('PATTERN_NUMBER_FORMAT'))		define('PATTERN_NUMBER_FORMAT', '#(?:,##)?([.,\'\s])#{3}(?:([.,\'])(#+|#~))?');
+if (!defined('PATTERN_CURRENCY_FORMAT'))	define('PATTERN_CURRENCY_FORMAT', '\'((?:USD|SEK)(?:,\s*(?:USD|SEK))*)\'');
 if (!defined('PATTERN_CSS_IDENTIFIER'))		define('PATTERN_CSS_IDENTIFIER', '-?[_a-zA-Z]+[_a-zA-Z0-9-]*');
 if (!defined('PATTERN_CSS_DECLARATION'))	define('PATTERN_CSS_DECLARATION', '(?:a|table|t[hrd])?(?:[:\.#]'.PATTERN_CSS_IDENTIFIER.')*');
 if (!defined('PATTERN_CSS_RULE'))			define('PATTERN_CSS_RULE', '('.PATTERN_CSS_DECLARATION.'(?:,\s*'.PATTERN_CSS_DECLARATION.')*)\s*(\{.*\})');
@@ -65,27 +66,52 @@ $comments= 0;
 
 //---------------------------------------------------------------------------------------------------------------------
 
-$currency_formats['US']= array(',', '.', 2);
-$currency_formats['SE']= array('.', ',', 2);
+$number_formats['standard']= '#,###.#~';
+$number_formats['european']= '#.###,#~';
 
-$selected_formats= array('US');
+// https://www.thefinancials.com/Default.aspx?SubSectionID=curformat
+// [#,###.###]BHD [#,###.##] [#.###,##] [# ###.##]AUD [#,##,###.##]INR [#.###]CLP [#,###]JPY [# ###]LBP
+$number_formats['USD']= '#,###.##';
+$number_formats['SEK']= '#.###,##';
+
+$parse_number_format= function($format) use (&$number_formats)
+{
+	preg_match('/^'.PATTERN_NUMBER_FORMAT.'$/', $number_formats[$format], $a_separators);
+	return $a_separators;
+};
+
+
+$selected_formats= array('standard');
 if (preg_match('/^'.PATTERN_CURRENCY_FORMAT.'$/', $arg3, $a_selected))
 	$selected_formats= explode(',', $a_selected[1]);
 
+//TODO: what format do we output? use the first specified format for now
+$js_toFixed= function($nr) use (&$parse_number_format, &$selected_formats)
+{
+	list(, $grouping, $decimal, $places)= $parse_number_format( trim($selected_formats[0]) );
+
+	if (0 == strcmp($places, '#~'))
+		return $nr;
+	return 'Number('. $nr .').toFixed('.strlen($places).')';
+};
+
 // https://www.php.net/manual/en/functions.anonymous.php
-//if (!function_exists('parse_currency')) { } // doesn't see global scope variables, support 'static'
-$parse_currency= function ($cell) use (&$currency_formats, &$selected_formats) 
+//if (!function_exists('parse_number')) { } // doesn't see global scope variables, support 'static'
+$parse_number= function ($cell) use (&$parse_number_format, &$selected_formats) 
 {
 	foreach ($selected_formats as $format)
 	{
-		list($grouping, $decimal, $places)= $currency_formats[trim($format)];
+		list(, $grouping, $decimal, $places)= $parse_number_format( trim($format) );
 		
 		if ($grouping == '.') $grouping= '\.';
 		if ($decimal  == '.') $decimal= '\.';
 
-		$PATTERN_CURRENCY= '([+-]?)\s*(\d{1,3}(?:'. $grouping .'\d{3})*|(?:\d+))(?:'. $decimal .'(\d{'. $places .'}))?';
+		if (0 == strcmp($places, '#~'))
+			$pattern_number= '([+-]?)\s*(\d{1,3}(?:'. $grouping .'\d{3})*|(?:\d+))(?:'. $decimal .'(\d+))?';
+		else
+			$pattern_number= '([+-]?)\s*(\d{1,3}(?:'. $grouping .'\d{3})*|(?:\d+))(?:'. $decimal .'(\d{'. strlen($places) .'}))?';
 
-		if (preg_match('/^'.$PATTERN_CURRENCY.'$/', $cell, $a_currency))
+		if (preg_match('/^'.$pattern_number.'$/', $cell, $a_currency))
 		{
 			$cell= $a_currency[1] . preg_replace('/'.$grouping.'/', '', $a_currency[2]);
 			if ( isset($a_currency[3]) )
@@ -227,11 +253,12 @@ foreach ($ARRAY_CODE_LINES as $csv_row => $csv_line)
 				//TODO: should be possible to add totals in a accu 
 				if ( isset($total['col'][$col]) xor isset($total['row'][$row]) )
 				{
+
 					foreach (array('row' => $row, 'col' => $col) as $dim => $idx)
 						if ( isset($total[$dim][$idx]) ) 
 						{
 							print $TD_ws. '<th id="'. $id .'" class="total row'. $row .' col'. $col .'" title="['. $xl_id .']" >ERROR!</th>';
-							$js_script.= 'if (t'.$dim.'['.$idx.'] !== undefined) $("'. $id .'").innerHTML= Number(t'.$dim.'['.$idx.']).toFixed(2); '. "\n";
+							$js_script.= 'if (t'.$dim.'['.$idx.'] !== undefined) $("'. $id .'").innerHTML= '. $js_toFixed('t'.$dim.'['.$idx.']') .'; '. "\n";
 
 							if (isset( $a_header_t[1] ))
 							{
@@ -289,7 +316,7 @@ foreach ($ARRAY_CODE_LINES as $csv_row => $csv_line)
 			}
 
 			$title= $cell;
-			list($success, $nr, $format)= $parse_currency($cell);
+			list($success, $nr, $format)= $parse_number($cell);
 
 			print $TD_ws. '<td id="'. $id .'" class="accu '. (($nr <= 0) ? 'warning' : '' ) .' row'.$row .' col'.$col .'" title="['. $xl_id .'] '. $title .'('. $format .')" >ERROR!</td>';
 
@@ -299,19 +326,19 @@ foreach ($ARRAY_CODE_LINES as $csv_row => $csv_line)
 					list($replaced, $selector, $var)= $replace_jquery_var($cell);
 
 					if ($success)
-						$js_script.= '$("'. $id .'").innerHTML= Number('. $nr .').toFixed(2); if (t'.$dim.'['.$idx.'] !== undefined) t'.$dim.'['.$idx.']+= Number('. $nr .'); '. "\n";
+						$js_script.= '$("'. $id .'").innerHTML= '. $js_toFixed($nr) .'; if (t'.$dim.'['.$idx.'] !== undefined) t'.$dim.'['.$idx.']+= Number('. $nr .'); '. "\n";
 
 					elseif (preg_match('/^\$'.PATTERN_VAR.'$/', $cell, $a_vars))
 					{
 						$var= $a_vars[0];
-						$js_script.= '$("'. $id .'").innerHTML= Number('. $var .').toFixed(2); if ('. $var .' > 0) $("'. $id .'").classList.remove("warning"); '. "\n";
+						$js_script.= '$("'. $id .'").innerHTML= '. $js_toFixed($var) .'; if ('. $var .' > 0) $("'. $id .'").classList.remove("warning"); '. "\n";
 						$js_script.= 'if ('. $var. ' === undefined) t'.$dim.'['.$idx.']= undefined; else if (t'.$dim.'['.$idx.'] !== undefined) t'.$dim.'['.$idx.']+= Number('. $var .'); '. "\n";
 					}
 
 					elseif ($replaced)
 					{
 						$js_script.= 'var '. $var .'= ('. $var.'_td= $("'. $selector .'")) ? '. $var.'_td.innerHTML : undefined; '. $var.'_td= undefined;' ."\n";
-						$js_script.= '$("'. $id .'").innerHTML= Number('. $var .').toFixed(2); if ('. $var .' > 0) $("'. $id .'").classList.remove("warning"); '. "\n";
+						$js_script.= '$("'. $id .'").innerHTML= '. $js_toFixed($var) .'; if ('. $var .' > 0) $("'. $id .'").classList.remove("warning"); '. "\n";
 						$js_script.= 'if ('. $var. ' === undefined) t'.$dim.'['.$idx.']= undefined; else if (t'.$dim.'['.$idx.'] !== undefined) t'.$dim.'['.$idx.']+= Number('. $var .'); '. "\n";
 					}
 					else
