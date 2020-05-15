@@ -356,6 +356,8 @@ foreach ($ARRAY_CODE_LINES as $csv_row => $csv_line)
 			continue;
 		}
 
+		$cell= preg_replace('/'.PATTERN_NO_ESC.'\$ID/', $xl_id, $cell);
+
 		// test for CamelLink
 		//
 		if (preg_match_all('/\[\[(.*?)\]\]/', $cell, $all_links))
