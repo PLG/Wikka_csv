@@ -400,7 +400,7 @@ $print_javascript= function () use (&$replace_jquery_var, &$ARRAY_CODE_LINES, &$
 	{
 		if (preg_match_all('/'.PATTERN_JQUERY_VAR.'|'.PATTERN_XL_ID.'/', $js_line, $a_vars)) 
 			$declared_names= array_merge($declared_names, $a_vars[0]);
-		if (preg_match_all('/('.PATTERN_XL_ID.')\s*=/', $js_line, $a_vars))
+		if (preg_match_all('/('.PATTERN_JQUERY_VAR.'|'.PATTERN_XL_ID.')\s*=/', $js_line, $a_vars))
 			$assigned_names= array_merge($assigned_names, $a_vars[1]);
 	}
 
@@ -461,7 +461,14 @@ $print_javascript= function () use (&$replace_jquery_var, &$ARRAY_CODE_LINES, &$
 	// push results back into html foreach variable assigned in js (with an = sign)
 	//
 	foreach ($assigned_names as $name) 
+	{
+		list($replaced, $selector, $var)= $replace_jquery_var($name);
+
+		if ($replaced)
+			print 'if ('. $var.'_td= $("'. $selector .'")) '. $var.'_td.innerHTML= '. $var .'; '. $var.'_td= undefined;' . "\n";
+		else
 		print 'if ('. $name.'_td= $("'. $ID_TABLE .'-'. $name .'")) '. $name.'_td.innerHTML= '. $name .'; '. $name.'_td= undefined;' . "\n";
+	}
 
 	// clean-up; undeclare all declared variables 
 	//
