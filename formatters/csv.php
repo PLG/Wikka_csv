@@ -29,7 +29,7 @@ $DELIM= ($arg1 == 'semi-colon') ? ';' : ',';
 $PATTERN_NO_SPLIT_QUOTED_DELIM='(?<!\\\)'. $DELIM .'(?=(?:[^"]*(["])[^"]*\1)*[^"]*$)';
 $PATTERN_ESC_DELIM='\\\\'. $DELIM .'';
 
-$ARRAY_CSV_LINES= preg_split("/[\n]/", $text);
+$ARRAY_CODE_LINES= preg_split("/[\n]/", $text);
 $comments= 0;
 
 //---------------------------------------------------------------------------------------------------------------------
@@ -87,19 +87,19 @@ $css['tr.odd']= '{ background-color:#eee; }';
 $css['.warning']= '{ background-color:#f00; }';
 $css['.total']= '{ border: 1px solid black; border-collapse: collapse; }';
 
-foreach ($ARRAY_CSV_LINES as $row => $csv_line) 
+foreach ($ARRAY_CODE_LINES as $row => $csv_line) 
 {
 	if ( preg_match('/^'.PATTERN_CSS_DEFINITION.'$/', $csv_line, $a_css) )
 	{
 		$css[ $a_css[1] ]= $a_css[2];
 
-		unset($ARRAY_CSV_LINES[$row]);
+		unset($ARRAY_CODE_LINES[$row]);
 		$comments++;
 		continue;
 	}
 
 	if (preg_match('/^#/',$csv_line))
-		print "Invalid CSS directive: [". $csv_line ."]\n";
+		print 'ERROR: invalid CSS directive: \''. $csv_line .'\'' ."\n";
 
 	break;
 }
@@ -116,8 +116,13 @@ print "</style>\n";
 //---------------------------------------------------------------------------------------------------------------------
 
 print '<table id="'. $ID_TABLE .'">'. "\n";
-foreach ($ARRAY_CSV_LINES as $csv_row => $csv_line) 
+foreach ($ARRAY_CODE_LINES as $csv_row => $csv_line) 
 {
+	if (preg_match('/^#js!/', $csv_line, $js_line))
+		break;
+
+	unset($ARRAY_CODE_LINES[$csv_row]);
+
 	if (preg_match('/^#|^\s*$/',$csv_line)) {
 		$comments++;
 		continue;
@@ -288,4 +293,65 @@ foreach ($ARRAY_CSV_LINES as $csv_row => $csv_line)
 
 }
 print "</table>\n";
+
+//---------------------------------------------------------------------------------------------------------------------
+
+// https://www.w3schools.com/js/js_htmldom_html.asp
+// https://playcode.io/
+
+$print_javascript= function () use (&$ARRAY_CODE_LINES, &$ID_TABLE)
+{
+	$declared_names= array();
+	$assigned_names= array();
+	foreach ($ARRAY_CODE_LINES as $js_line) {
+		if (preg_match_all('/[A-Z]+[\d]+/', $js_line, $a_vars)) 
+			$declared_names= array_merge($declared_names, $a_vars[0]);
+		if (preg_match_all('/([A-Z]+[\d]+)\s*=/', $js_line, $a_vars))
+			$assigned_names= array_merge($assigned_names, $a_vars[1]);
+	}
+	$declared_names= array_unique($declared_names);
+	$assigned_names= array_unique($assigned_names);
+	sort($declared_names);
+	sort($assigned_names);
+
+	// print <script/>
+	//
+
+	print '<script>' ."\n";
+	foreach ($declared_names as $name) 
+		print 'var '. $name .'= document.getElementById("'. $ID_TABLE .'-'. $name .'").innerHTML;' . "\n";
+
+	foreach ($ARRAY_CODE_LINES as $lnr => $js_line) 
+	{
+		if (!isset($js_line))
+			print "PLGNO";
+
+		if (!preg_match('/^#js!\s*(.*)$/', $js_line, $a_jscode))
+			break;
+
+		$js_line= $a_jscode[1];
+
+		if (preg_match('/^\s*\/\//', $js_line, $a_jscode))
+			continue;
+
+		// Escape the Math.fxn() calls, if the line qualifies, then print the unescaped $js_line
+		//
+		$js_esc_math= preg_replace('/Math\.([^\(]*)\(([^\)]*)\)/U', 'Math.\1"\2"', $js_line);
+		if (preg_match('/^[\w=\s\/;+\'"*!|&^%\.-]*$/', $js_esc_math, $a_js)) {
+			print $js_line ."\n";
+			continue;
+		}
+		
+		print '</script>' ."\n";
+		print 'ERROR: line '. $lnr .': \''. $js_line .'\'' ."\n";
+		return;
+	}
+
+	foreach ($assigned_names as $name) 
+		print 'document.getElementById("'. $ID_TABLE .'-'. $name .'").innerHTML= '. $name .';' . "\n";
+
+	print '</script>' ."\n";
+};
+
+$print_javascript();
 ?>
