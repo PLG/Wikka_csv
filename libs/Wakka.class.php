@@ -96,6 +96,14 @@ class Wakka
 	var $config = array();
 
 	/**
+	 * Hold the in-page variables.
+	 *
+	 * @access	private
+	 * @var		array
+	 */
+	var $pagevars = array();
+
+	/**
 	 * Hold the connection-link to the database.
 	 *
 	 * @access	private
@@ -1180,6 +1188,32 @@ class Wakka
 	function SetConfigValue($name,$value)
 	{
 		$this->config[$name] = $value;
+	}
+
+	/**
+	 * Get the value of a given item from the wikka config.
+	 *
+	 * @uses	Wakka::$pagevars
+	 *
+	 * @param	$name	mandatory: name of a key in the config array
+	 * @return	mixed	the value of the configuration item, or NULL if not found
+	 */
+	function GetPageVariable($name, $default=NULL)
+	{
+		$val = (isset($this->pagevars[$name])) ? $this->pagevars[$name] : $default;
+		return $val;
+	}
+	/**
+	 * Set the value of a given item from the wikka config.
+	 *
+	 * @uses	Wakka::$pagevars
+	 *
+	 * @param	$name mandatory: name of a key in the config array
+	 * @param	$value mandatory: the value to set the item at
+	 * 	 */
+	function SetPageVariable($name,$value)
+	{
+		$this->pagevars[$name] = $value;
 	}
 
 	/**
