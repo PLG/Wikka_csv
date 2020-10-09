@@ -205,14 +205,19 @@ foreach ($ARRAY_CODE_LINES as $csv_row => $csv_line)
 
 	unset($ARRAY_CODE_LINES[$csv_row]);
 
-	if (preg_match('/^#/',$csv_line)) {
+	if (preg_match('/^#/', $csv_line)) {
 		$comments++;
 		continue;
 	}
 
 	$row= $csv_row - $comments;
 
-	print ($row %2) ? '<tr class="even" >' : '<tr class="odd" >';
+	// if blank line, print empty row ... else ...
+	//
+	if (preg_match('/^\s*$/', $csv_line)) 
+		print '<tr class="empty" >';
+	else 
+		print ($row %2) ? '<tr class="even" >' : '<tr class="odd" >';
 
 	foreach (preg_split('/'. $PATTERN_NO_SPLIT_QUOTED_DELIM .'/', $csv_line) as $col => $csv_cell)
 	{
@@ -359,7 +364,7 @@ foreach ($ARRAY_CODE_LINES as $csv_row => $csv_line)
 			continue;
 		}
 
-		// if blank, print &nbsp;
+		// if blank cell, print &nbsp;
 		//
 		if (preg_match('/^\s*$/',$cell)) 
 		{
