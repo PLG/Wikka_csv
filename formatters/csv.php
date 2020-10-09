@@ -109,19 +109,24 @@ $parse_number= function ($cell) use (&$parse_number_format, &$selected_formats)
 		if (!strcmp($places, '#~'))
 			$pattern_number= '([+-]?)\s*(\d{1,3}(?:'. $grouping .'\d{3})*|(?:\d+))(?:'. $decimal .'(\d+))?';
 		else
-			$pattern_number= '([+-]?)\s*(\d{1,3}(?:'. $grouping .'\d{3})*|(?:\d+))(?:'. $decimal .'(\d{'. strlen($places) .'}))?';
+			$pattern_number= '([+-]?)\s*(\d{1,3}(?:'. $grouping .'\d{3})*|(?:\d+))(?:'. $decimal .'(\d{'. strlen($places) .'}))?(?:\s*([A-Z]{3}))?';
 
 		if (preg_match('/^'.$pattern_number.'$/', $cell, $a_currency))
 		{
-			$cell= $a_currency[1] . preg_replace('/'.$grouping.'/', '', $a_currency[2]);
-			if ( isset($a_currency[3]) )
-				$cell.= '.'. $a_currency[3];
+			list(, $posneg, $whole, $frac, $currency)= $a_currency;
 
-			return array(true, floatval($cell), $format);
+			if (isset($currency) && strcmp($currency, $format))
+				continue;
+
+			$cell= $posneg . preg_replace('/'.$grouping.'/', '', $whole);
+			if ( isset($frac) )
+				$cell.= '.'. $frac;
+
+			return array(true, floatval($cell), $format, $currency);
 		}
 	}
 
-	return array(false, $cell, 'ERR');
+	return array(false, $cell, 'ERR', '');
 };
 
 //---------------------------------------------------------------------------------------------------------------------
@@ -316,8 +321,12 @@ foreach ($ARRAY_CODE_LINES as $csv_row => $csv_line)
 				continue;
 			}
 
+			//TODO if USD is appended to the end of a cell, that means variable replacement should move here, so that the replacement is also parsed for currency
+			// Also, in js, you will get '234.34 USD' when reading out a variable. Users will need string parsing tools then. argh!
+
 			$title= $cell;
-			list($success, $nr, $format)= $parse_number($cell);
+			list($success, $nr, $format, $currency)= $parse_number($cell);
+			print_r($cell);
 
 			print $TD_ws. '<td id="'. $id .'" class="accu '. (($nr <= 0) ? 'warning' : '' ) .' row'.$row .' col'.$col .'" title="['. $xl_id .'] '. $title .'('. $format .')" >ERROR!</td>';
 
@@ -328,6 +337,7 @@ foreach ($ARRAY_CODE_LINES as $csv_row => $csv_line)
 
 					if ($success)
 						$js_script.= '$("'. $id .'").innerHTML= '. $js_toFixed($nr) .'; if (t'.$dim.'['.$idx.'] !== undefined) t'.$dim.'['.$idx.']+= Number('. $nr .'); '. "\n";
+						//TODO $js_script.= '$("'. $id .'").innerHTML= '. $js_toFixed($nr) .''. $currency .'; if (t'.$dim.'['.$idx.'] !== undefined) t'.$dim.'['.$idx.']+= Number('. $nr .'); '. "\n";
 
 					elseif (preg_match('/^\$'.PATTERN_VAR.'$/', $cell, $a_vars))
 					{
@@ -470,7 +480,7 @@ $print_javascript= function () use (&$replace_jquery_var, &$ARRAY_CODE_LINES, &$
 		if ($replaced)
 			print 'if ('. $var.'_td= $("'. $selector .'")) '. $var.'_td.innerHTML= '. $var .'; '. $var.'_td= undefined;' . "\n";
 		else
-		print 'if ('. $name.'_td= $("'. $ID_TABLE .'-'. $name .'")) '. $name.'_td.innerHTML= '. $name .'; '. $name.'_td= undefined;' . "\n";
+			print 'if ('. $name.'_td= $("'. $ID_TABLE .'-'. $name .'")) '. $name.'_td.innerHTML= '. $name .'; '. $name.'_td= undefined;' . "\n";
 	}
 
 	// clean-up; undeclare all declared variables 
