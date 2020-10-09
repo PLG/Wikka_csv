@@ -251,6 +251,10 @@ foreach ($ARRAY_CODE_LINES as $csv_row => $csv_line)
 
 			if (preg_match('/^(?:\$(\w*))?\[\.\.\.\]$/', $header, $a_header_t))
 			{
+				$var_name= $a_header_t[1];
+				if (isset( $var_name ))
+					$id= $ID_TABLE . CSS_ID_DELIM . $var_name;
+
 				//TODO: should be possible to add totals in a accu 
 				if ( isset($total['col'][$col]) xor isset($total['row'][$row]) )
 				{
@@ -261,14 +265,8 @@ foreach ($ARRAY_CODE_LINES as $csv_row => $csv_line)
 							print $TD_ws. '<th id="'. $id .'" class="total row'. $row .' col'. $col .'" title="['. $xl_id .']" >ERROR!</th>';
 							$js_script.= 'if (t'.$dim.'['.$idx.'] !== undefined) $("'. $id .'").innerHTML= '. $js_toFixed('t'.$dim.'['.$idx.']') .'; '. "\n";
 
-							if (isset( $a_header_t[1] ))
-							{
-								$var= $a_header_t[1];	
-
-								print '<div id="'. $ID_TABLE . CSS_ID_DELIM . $var .'" hidden>ERROR!</div>';
-								$js_script.= 'if (t'.$dim.'['.$idx.'] !== undefined) $("'. $ID_TABLE . CSS_ID_DELIM . $var .'").innerHTML= t'.$dim.'['.$idx.']; '. "\n";
-								$js_script.= 'var $'. $var .'= t'.$dim.'['.$idx.']; '. "\n";
-							}
+							if (isset( $var_name ))
+								$js_script.= 'var $'. $var_name .'= t'.$dim.'['.$idx.']; '. "\n";
 
 							unset($total[$dim][$idx]);
 						}
