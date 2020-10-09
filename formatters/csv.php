@@ -90,7 +90,7 @@ $js_toFixed= function($nr) use (&$parse_number_format, &$selected_formats)
 {
 	list(, $grouping, $decimal, $places)= $parse_number_format( trim($selected_formats[0]) );
 
-	if (0 == strcmp($places, '#~'))
+	if (!strcmp($places, '#~'))
 		return $nr;
 	return 'Number('. $nr .').toFixed('.strlen($places).')';
 };
@@ -106,7 +106,7 @@ $parse_number= function ($cell) use (&$parse_number_format, &$selected_formats)
 		if ($grouping == '.') $grouping= '\.';
 		if ($decimal  == '.') $decimal= '\.';
 
-		if (0 == strcmp($places, '#~'))
+		if (!strcmp($places, '#~'))
 			$pattern_number= '([+-]?)\s*(\d{1,3}(?:'. $grouping .'\d{3})*|(?:\d+))(?:'. $decimal .'(\d+))?';
 		else
 			$pattern_number= '([+-]?)\s*(\d{1,3}(?:'. $grouping .'\d{3})*|(?:\d+))(?:'. $decimal .'(\d{'. strlen($places) .'}))?';
@@ -186,7 +186,8 @@ print "</style>\n";
 
 //---------------------------------------------------------------------------------------------------------------------
 
-$TD_ws= ''; // "\n\t"; 
+//$TD_ws= "\n\t"; 
+$TD_ws= ''; 
 $js_script= '';
 
 print '<table id="'. $ID_TABLE .'">'. "\n";
@@ -283,6 +284,8 @@ foreach ($ARRAY_CODE_LINES as $csv_row => $csv_line)
 
 				continue;
 			}
+
+			//TODO: undefined all tcol and trow in js at the end of the script
 
 			if (preg_match('/^(.*)\s*'.PATTERN_NO_ESC.'([+#])\2$/', $header, $a_accum)) {
 				$header= $a_accum[1];
