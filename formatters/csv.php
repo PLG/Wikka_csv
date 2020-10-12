@@ -10,6 +10,7 @@
 //---------------------------------------------------------------------------------------------------------------------
 
 // https://www.phpliveregex.com
+// https://www.php.net/manual/en/function.preg-quote.php
 // https://www.regular-expressions.info/quickstart.html
 
 if (!defined('PATTERN_ARGUMENT'))			define('PATTERN_ARGUMENT', '(?:;([^;\)\x01-\x1f\*\?"<>\|]*))?');
@@ -374,24 +375,20 @@ foreach ($ARRAY_CODE_LINES as $csv_row => $csv_line)
 
 		$cell= preg_replace('/'.PATTERN_NO_ESC.'\$ID/', $xl_id, $cell);
 
-		// test for CamelLink
+		// test of [[CamelLink]] and [[URL|name]]
 		//
-		if (preg_match_all('/\[\[(.*?)\]\]/', $cell, $all_links))
+		if (preg_match_all('/\[\[([^|\]]*)(?:\|([^\]]*))?\]\]/', $cell, $a_links))
 		{
-			foreach ($all_links[1] as $i => $camel_link) 
-				$cell = preg_replace('/\[\['. $camel_link .'\]\]/', $this->Link($camel_link), $cell);
-		}		
-		// test for [[url|label]]
-		//
-		elseif (preg_match_all('/\[\[(.*?\|.*?)\]\]/', $cell, $all_links))
-		{
-			foreach ($all_links[1] as $i => $url_link) 
-				if(preg_match('/^\s*(.*?)\s*\|\s*(.*?)\s*$/su', $url_link, $matches)) {
-					$url = $matches[1];
-					$text = $matches[2];
-					$cell = $this->Link($url, '', $text, TRUE, TRUE, '', '', FALSE);	
-				}
-		}		
+			list($found, $links, $names)= $a_links;
+			foreach ($found as $idx => $found1)
+			{
+				if ( empty($names[$idx]) )
+					$cell= preg_replace('/'.preg_quote($found[$idx]).'/', $this->Link($links[$idx]), $cell);
+
+				else
+					$cell= preg_replace('/'.preg_quote($found[$idx],'/').'/', $this->Link($links[$idx], '', $names[$idx], TRUE, TRUE, '', '', FALSE), $cell);
+			}
+		}
 		else
 			$cell= $this->htmlspecialchars_ent($cell);
 
