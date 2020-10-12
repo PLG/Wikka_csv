@@ -132,6 +132,28 @@ $parse_number= function ($cell) use (&$parse_number_format, &$selected_formats)
 
 //---------------------------------------------------------------------------------------------------------------------
 
+$replace_camel_url_links= function ($cell)
+{
+	// test of [[CamelLink]] and [[URL|name]]
+	//
+	if (preg_match_all('/\[\[([^|\]]*)(?:\|([^\]]*))?\]\]/', $cell, $a_links))
+	{
+		list($found, $links, $names)= $a_links;
+		foreach ($found as $idx => $found1)
+		{
+			if ( empty($names[$idx]) )
+				$cell= preg_replace('/'.preg_quote($found[$idx],'/').'/', $this->Link($links[$idx]), $cell);
+
+			else
+				$cell= preg_replace('/'.preg_quote($found[$idx],'/').'/', $this->Link($links[$idx], '', $names[$idx], TRUE, TRUE, '', '', FALSE), $cell);
+		}
+
+		return array(true, $cell);
+	}
+
+	return array(false, $cell);
+};
+
 $replace_jquery_var= function ($name)
 {
 	if (preg_match('/'.PATTERN_JQUERY_VAR.'/', $name, $a_vars))
@@ -310,7 +332,11 @@ foreach ($ARRAY_CODE_LINES as $csv_row => $csv_line)
 			if ($quotes != '"')
 				$header= preg_replace('/[\\\](.)/', '\1', $header);
 
-			print $TD_ws. '<th id="'. $id .'" class="row'. $row .' col'. $col .'" style="'. $cell_style .'" >'. $this->htmlspecialchars_ent($header) .'</th>';
+			$header= $this->htmlspecialchars_ent($header);
+
+			list(, $header)= $replace_camel_url_links($header);
+
+			print $TD_ws. '<th id="'. $id .'" class="row'. $row .' col'. $col .'" style="'. $cell_style .'" >'. $header .'</th>';
 			continue;
 		}
 
@@ -375,22 +401,9 @@ foreach ($ARRAY_CODE_LINES as $csv_row => $csv_line)
 
 		$cell= preg_replace('/'.PATTERN_NO_ESC.'\$ID/', $xl_id, $cell);
 
-		// test of [[CamelLink]] and [[URL|name]]
-		//
-		if (preg_match_all('/\[\[([^|\]]*)(?:\|([^\]]*))?\]\]/', $cell, $a_links))
-		{
-			list($found, $links, $names)= $a_links;
-			foreach ($found as $idx => $found1)
-			{
-				if ( empty($names[$idx]) )
-					$cell= preg_replace('/'.preg_quote($found[$idx]).'/', $this->Link($links[$idx]), $cell);
+		$cell= $this->htmlspecialchars_ent($cell);
 
-				else
-					$cell= preg_replace('/'.preg_quote($found[$idx],'/').'/', $this->Link($links[$idx], '', $names[$idx], TRUE, TRUE, '', '', FALSE), $cell);
-			}
-		}
-		else
-			$cell= $this->htmlspecialchars_ent($cell);
+		list(, $cell)= $replace_camel_url_links($cell);
 
 		print $TD_ws. '<td id="'. $id .'" class="row'. $row .' col'. $col .'" style="'. $cell_style .'" >'. $cell .'</td>';
 
