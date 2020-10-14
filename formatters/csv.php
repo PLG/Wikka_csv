@@ -266,6 +266,7 @@ foreach ($ARRAY_CODE_LINES as $csv_row => $csv_line)
 
 		$attr[STYLE]='';
 
+		$tag= 'td';
 		$tag_style= '';
 		$tag_script= '';
 
@@ -277,8 +278,11 @@ foreach ($ARRAY_CODE_LINES as $csv_row => $csv_line)
 		{
 			list(, $quotes, $cell)= $a_matches;
 
+			if (empty($cell))
+				$cell= '&nbsp;';
+
 			if ($quotes == '"')
-				$attr[STYLE].= 'white-space:pre; ';
+				$attr[STYLE].= ' white-space:pre;';
 		}
 
 		//-------------------------------------------------------------------------------------------------------------
@@ -286,185 +290,177 @@ foreach ($ARRAY_CODE_LINES as $csv_row => $csv_line)
 
 		if (preg_match('/^\s*==\s*(.*?)\s*==\s*$/', $cell, $a_header)) 
 		{
-			list(,$header)= $a_header;
-			//TODO print '|'. $header .'|';
+			list(,$cell)= $a_header;
 
-			// READ into variable
-			//
-			if (preg_match('/^\[(?:\$(\w*))?=(.*)?\]$/', $header, $a_header_t))
+			$tag= 'th';
+
+			if (preg_match('/([\/\\\\|])(.*)\1$/', $cell, $a_nonvar)) 
 			{
-				//TODO deal with [$var=] and [=]
+				list(, $align, $cell)= $a_nonvar;
 
-				list(, $decl_var, $decl_value)= $a_header_t;
-
-				//if (!empty( $decl_var ))
-				//	$attr[ID]= $ID_TABLE . CSS_ID_DELIM . $decl_var;
-
-				//TODO: should be possible to add totals in a accu 
-
-				if ($decl_value == '|++')
-				{
-					if (isset($total['col'][$col]) )
-					{
-						$dim= 'col'; $idx= $col;
-	
-						$attr[CLASSES].= ' total';
-						$header= 'ERROR!';
-						$tag_script.= 'if (t'.$dim.'['.$idx.'] !== undefined) $("'. $attr[ID] .'").innerHTML= '. $js_toFixed('t'.$dim.'['.$idx.']') .'; '. "\n";
-	
-						if (!empty( $decl_var ))
-							$tag_script.= 'var '. $escaped_css_id_var($ID_TABLE, $decl_var) .'= $("'. $attr[ID] .'"); '. "\n";
-	
-						unset($total[$dim][$idx]);
-					}
-					else
-					{
-						$attr[CLASSES].= ' warning ';
-						$header= 'SYNTAX';
-					}
+				switch ($align) {
+					case '/' :	$tag_style.= '#'. $ID_TABLE .' .col'. $col .' { text-align:right; }';	break;
+					case '\\' :	$tag_style.= '#'. $ID_TABLE .' .col'. $col .' { text-align:left; }';	break;
+					case '|' :	$tag_style.= '#'. $ID_TABLE .' .col'. $col .' { text-align:center; }';	break;
 				}
-
-				else if ($decl_value == '++_')
-				{
-					if (isset($total['row'][$row]) )
-					{
-						$dim= 'row'; $idx= $row;
-
-						$attr[CLASSES].= ' total';
-						$header= 'ERROR!';
-						$tag_script.= 'if (t'.$dim.'['.$idx.'] !== undefined) $("'. $attr[ID] .'").innerHTML= '. $js_toFixed('t'.$dim.'['.$idx.']') .'; '. "\n";
-
-						if (!empty( $decl_var ))
-							$tag_script.= 'var '. $escaped_css_id_var($ID_TABLE, $decl_var) .'= $("'. $attr[ID] .'"); '. "\n";
-
-						unset($total[$dim][$idx]);
-					}
-					else
-					{
-						$attr[CLASSES].= ' warning ';
-						$header= 'SYNTAX';
-					}
-				}
-
-				else 
-				{
-					if (empty($decl_value))
-						$decl_value= '\'\'';
-
-					$header= $decl_value;
-					//$header= 'ERROR!';
-					//$tag_script.= '$("'. $attr[ID] .'").innerHTML= '. $decl_value .'; '. "\n";
-
-					if (!empty( $decl_var ))
-						$tag_script.= 'var '. $escaped_css_id_var($ID_TABLE, $decl_var) .'= $("'. $attr[ID] .'"); '. "\n";
-				}
-
-				/*
-				//TODO: should be possible to add totals in a accu 
-				if ( isset($total['col'][$col]) xor isset($total['row'][$row]) )
-				{
-
-					foreach (array('row' => $row, 'col' => $col) as $dim => $idx)
-						if ( isset($total[$dim][$idx]) ) 
-						{
-							print $TD_ws. '<th id="'. $id .'" class="total row'. $row .' col'. $col .'" title="['. $xl_id .']" >ERROR!</th>';
-							$js_script.= 'if (t'.$dim.'['.$idx.'] !== undefined) $("'. $id .'").innerHTML= '. $js_toFixed('t'.$dim.'['.$idx.']') .'; '. "\n";
-
-							if (isset( $var_name ))
-								$js_script.= 'var $'. $var_name .'= t'.$dim.'['.$idx.']; '. "\n";
-
-							unset($total[$dim][$idx]);
-						}
-
-					continue;
-				}
-
-				//TODO
-				foreach (array('row' => $row, 'col' => $col) as $dim => $idx)
-					if ( isset($total[$dim][$idx]) )
-						unset($total[$dim][$idx]);
-				*/
 			}
 
-			//TODO $header= preg_replace('/'.PATTERN_NO_ESC.'\$ID/', $xl_id, $header);
+			//TODO: undefined all tcol and trow in js at the end of the script
 
-			// Write variable
-			//
-			elseif (preg_match('/'.PATTERN_SIMPLE_VAR.'/', $header, $a_simple_var))
-			{
-				list(, $var_name)= $a_simple_var;
-				$css_id_var= $escaped_css_id_var($ID_TABLE, $var_name);
-
-				$header= 'ERROR!';
-				$tag_script.= 'if ('. $css_id_var .' !== undefined) $("'. $attr[ID] .'").innerHTML= '. $css_id_var .'.innerHTML; '. "\n";
+			if (preg_match('/^(.*)\s*'.PATTERN_NO_ESC.'([+#])\2$/', $cell, $a_accum)) {
+				$cell= $a_accum[1];
+				$total['col'][$col]= true;
+				$tag_script.= 'tcol['.$col.']= 0; '. "\n";
+			}
+			elseif (preg_match('/^'.PATTERN_NO_ESC.'([+#])\1(.*)\s*$/', $cell, $a_accum)) {
+				$cell= $a_accum[2];
+				$total['row'][$row]= true;
+				$tag_script.= 'trow['.$row.']= 0; '. "\n";
 			}
 
-			// handle non-variable header
-			//
-			else
-			{
-				if (preg_match('/([\/\\\\|])(.*)\1$/', $header, $a_header)) 
-				{
-					list(, $align, $header)= $a_header;
-
-					switch ($align) {
-						case '/' :	$tag_style.= '#'. $ID_TABLE .' .col'. $col .' { text-align:right; }';	break;
-						case '\\' :	$tag_style.= '#'. $ID_TABLE .' .col'. $col .' { text-align:left; }';	break;
-						case '|' :	$tag_style.= '#'. $ID_TABLE .' .col'. $col .' { text-align:center; }';	break;
-					}
-				}
-
-				//TODO: undefined all tcol and trow in js at the end of the script
-	
-				if (preg_match('/^(.*)\s*'.PATTERN_NO_ESC.'([+#])\2$/', $header, $a_accum)) {
-					$header= $a_accum[1];
-					$total['col'][$col]= true;
-					$tag_script.= 'tcol['.$col.']= 0; '. "\n";
-				}
-				elseif (preg_match('/^'.PATTERN_NO_ESC.'([+#])\1(.*)\s*$/', $header, $a_accum)) {
-					$header= $a_accum[2];
-					$total['row'][$row]= true;
-					$tag_script.= 'trow['.$row.']= 0; '. "\n";
-				}
-
-				if ($quotes != '"')
-					$header= preg_replace('/[\\\](.)/', '\1', $header);
-
-				$header= $this->htmlspecialchars_ent($header);
-
-				list(, $header)= $replace_camel_url_links($header);
-			}
-
-			print $TD_ws; 
-			print ((empty($tag_style)) ? '' : '<style>'. $tag_style .'</style>');
-			print '<th id="'. $attr[ID] .'" class="'. $attr[CLASSES] .'" style="'. $attr[STYLE] .'" >'. $header .'</th>';
-			print ((empty($tag_script)) ? '' : "\n". '<script>'. $tag_script .'</script>');
-
-			continue;
 		}
 
 		//-------------------------------------------------------------------------------------------------------------
-		// cell
+		// not header
 
-		if ($quotes != '"')
-			$cell= preg_replace('/[\\\](.)/', '\1', $cell);
+		else
+		{
+		}
 
-		$cell= preg_replace('/'.PATTERN_NO_ESC.'\$ID/', $xl_id, $cell);
+		//-------------------------------------------------------------------------------------------------------------
+		//
 
+		// READ into variable
+		//
+		if (preg_match('/^\[(?:\$(\w*))?=(.*)?\]$/', $cell, $a_read_var))
+		{
+			list(, $decl_var, $decl_value)= $a_read_var;
+
+			//if (!empty( $decl_var ))
+			//	$attr[ID]= $ID_TABLE . CSS_ID_DELIM . $decl_var;
+
+			//TODO: should be possible to add totals in a accu 
+
+			if ($decl_value == '|++')
+			{
+				if (isset($total['col'][$col]) )
+				{
+					$dim= 'col'; $idx= $col;
+
+					$attr[CLASSES].= ' total';
+					$cell= 'ERROR!';
+					$tag_script.= 'if (t'.$dim.'['.$idx.'] !== undefined) $("'. $attr[ID] .'").innerHTML= '. $js_toFixed('t'.$dim.'['.$idx.']') .'; '. "\n";
+
+					if (!empty( $decl_var ))
+						$tag_script.= 'var '. $escaped_css_id_var($ID_TABLE, $decl_var) .'= $("'. $attr[ID] .'"); '. "\n";
+
+					unset($total[$dim][$idx]);
+				}
+				else
+				{
+					$attr[CLASSES].= ' warning ';
+					$cell= 'SYNTAX!';
+				}
+			}
+
+			else if ($decl_value == '++_')
+			{
+				if (isset($total['row'][$row]) )
+				{
+					$dim= 'row'; $idx= $row;
+
+					$attr[CLASSES].= ' total';
+					$cell= 'ERROR!';
+					$tag_script.= 'if (t'.$dim.'['.$idx.'] !== undefined) $("'. $attr[ID] .'").innerHTML= '. $js_toFixed('t'.$dim.'['.$idx.']') .'; '. "\n";
+
+					if (!empty( $decl_var ))
+						$tag_script.= 'var '. $escaped_css_id_var($ID_TABLE, $decl_var) .'= $("'. $attr[ID] .'"); '. "\n";
+
+					unset($total[$dim][$idx]);
+				}
+				else
+				{
+					$attr[CLASSES].= ' warning ';
+					$cell= 'SYNTAX!';
+				}
+			}
+
+			else 
+			{
+				if (empty($decl_value))
+					$decl_value= '\'\'';
+
+				$cell= $decl_value;
+				//$cell= 'ERROR!';
+				//$tag_script.= '$("'. $attr[ID] .'").innerHTML= '. $decl_value .'; '. "\n";
+
+				if (!empty( $decl_var ))
+					$tag_script.= 'var '. $escaped_css_id_var($ID_TABLE, $decl_var) .'= $("'. $attr[ID] .'"); '. "\n";
+			}
+
+			/*
+			//TODO: should be possible to add totals in a accu 
+			if ( isset($total['col'][$col]) xor isset($total['row'][$row]) )
+			{
+
+				foreach (array('row' => $row, 'col' => $col) as $dim => $idx)
+					if ( isset($total[$dim][$idx]) ) 
+					{
+						print $TD_ws. '<th id="'. $id .'" class="total row'. $row .' col'. $col .'" title="['. $xl_id .']" >ERROR!</th>';
+						$js_script.= 'if (t'.$dim.'['.$idx.'] !== undefined) $("'. $id .'").innerHTML= '. $js_toFixed('t'.$dim.'['.$idx.']') .'; '. "\n";
+
+						if (isset( $var_name ))
+							$js_script.= 'var $'. $var_name .'= t'.$dim.'['.$idx.']; '. "\n";
+
+						unset($total[$dim][$idx]);
+					}
+
+				continue;
+			}
+
+			//TODO
+			foreach (array('row' => $row, 'col' => $col) as $dim => $idx)
+				if ( isset($total[$dim][$idx]) )
+					unset($total[$dim][$idx]);
+			*/
+		}
+
+		// Write variable
+		//
+		elseif (preg_match('/'.PATTERN_SIMPLE_VAR.'/', $cell, $a_simple_var))
+		{
+			list(, $var_name)= $a_simple_var;
+
+			if ($var_name == 'ID')
+				$cell= preg_replace('/'.PATTERN_NO_ESC.'\$ID/', $xl_id, $cell);
+			else
+			{
+				$css_id_var= $escaped_css_id_var($ID_TABLE, $var_name);
+
+				$cell= 'ERROR!';
+				$tag_script.= 'if ('. $css_id_var .' !== undefined) $("'. $attr[ID] .'").innerHTML= '. $css_id_var .'.innerHTML; '. "\n";
+			}
+		}
+
+		// calculate totals
+		//
 		if ( isset($total['col'][$col]) || isset($total['row'][$row]) )
 		{
+			/*
+			//TODO
 			if (trim($cell) == '_') {
 				print $TD_ws. '<td id="'. $attr[ID] .'" class="accu row'.$row .' col'.$col .'" title="['. $xl_id .']" >&nbsp;</td>';
 				continue;
 			}
+			*/
 
 			//TODO if USD is appended to the end of a cell, that means variable replacement should move here, so that the replacement is also parsed for currency
 			// Also, in js, you will get '234.34 USD' when reading out a variable. Users will need string parsing tools then. argh!
 
-			$title= $cell;
 			list($success, $nr, $format, $currency)= $parse_number($cell);
 
-			print $TD_ws. '<td id="'. $attr[ID] .'" class="accu '. (($nr <= 0) ? 'warning' : '' ) .' row'.$row .' col'.$col .'" title="['. $xl_id .'] '. $title .'('. $format .')" >ERROR!</td>';
+			//TODO $attr[CLASSES].= ' accu'. (($nr <= 0) ? ' warning' : '' );
+			$attr[TITLE].= ' '. $cell .'('. $format .')';
 
 			foreach (array('row' => $row, 'col' => $col) as $dim => $idx)
 				if ( isset($total[$dim][$idx]) )
@@ -472,9 +468,11 @@ foreach ($ARRAY_CODE_LINES as $csv_row => $csv_line)
 					list($replaced, $selector, $var)= $replace_jquery_var($cell);
 
 					if ($success)
-						$js_script.= '$("'. $attr[ID] .'").innerHTML= '. $js_toFixed($nr) .'; if (t'.$dim.'['.$idx.'] !== undefined) t'.$dim.'['.$idx.']+= Number('. $nr .'); '. "\n";
+						$tag_script.= '$("'. $attr[ID] .'").innerHTML= '. $js_toFixed($nr) .'; if (t'.$dim.'['.$idx.'] !== undefined) t'.$dim.'['.$idx.']+= Number('. $nr .'); '. "\n";
 						//TODO $js_script.= '$("'. $attr[ID] .'").innerHTML= '. $js_toFixed($nr) .''. $currency .'; if (t'.$dim.'['.$idx.'] !== undefined) t'.$dim.'['.$idx.']+= Number('. $nr .'); '. "\n";
 
+					/*
+					//TODO
 					elseif (preg_match('/^\$'.PATTERN_VAR.'$/', $cell, $a_vars))
 					{
 						$var= $a_vars[0];
@@ -490,24 +488,25 @@ foreach ($ARRAY_CODE_LINES as $csv_row => $csv_line)
 					}
 					else
 						$js_script.= 't'.$dim.'['.$idx.']= undefined; '. "\n";
+
+					*/
 				}
-
-			continue;
 		}
 
-		// if blank cell, print &nbsp;
-		//
-		if (preg_match('/^\s*$/',$cell)) 
-		{
-			print $TD_ws. '<td id="'. $attr[ID] .'" class="row'. $row .' col'. $col .'" >&nbsp;</td>';
-			continue;
-		}
+		//-------------------------------------------------------------------------------------------------------------
+		// Output
+
+		if ($quotes != '"')
+			$cell= preg_replace('/[\\\](.)/', '\1', $cell);
 
 		$cell= $this->htmlspecialchars_ent($cell);
 
 		list(, $cell)= $replace_camel_url_links($cell);
 
-		print $TD_ws. '<td id="'. $attr[ID] .'" class="row'. $row .' col'. $col .'" style="'. $cell_style .'" >'. $cell .'</td>';
+		print $TD_ws; 
+		print ((empty($tag_style)) ? '' : '<style>'. $tag_style .'</style>');
+		print '<'. $tag .' id="'. $attr[ID] .'" class="'. $attr[CLASSES] .'" title="'. $attr[TITLE] .'" style="'. $attr[STYLE] .'" >'. $cell .'</'. $tag .'>';
+		print ((empty($tag_script)) ? '' : "\n". '<script>'. $tag_script .'</script>');
 
 	}
 	print "</tr>\n";
