@@ -22,9 +22,15 @@ if (!defined('PATTERN_CSS_IDENTIFIER'))		define('PATTERN_CSS_IDENTIFIER', '-?[_a
 if (!defined('PATTERN_CSS_DECLARATION'))	define('PATTERN_CSS_DECLARATION', '(?:a|table|t[hrd])?(?:[:\.#]'.PATTERN_CSS_IDENTIFIER.')*');
 if (!defined('PATTERN_CSS_RULE'))			define('PATTERN_CSS_RULE', '('.PATTERN_CSS_DECLARATION.'(?:,\s*'.PATTERN_CSS_DECLARATION.')*)\s*(\{.*\})');
 if (!defined('PATTERN_VAR'))				define('PATTERN_VAR', '[a-zA-Z_]\w*');
+if (!defined('PATTERN_SIMPLE_VAR'))			define('PATTERN_SIMPLE_VAR', '\$(?:\(\')?('.PATTERN_VAR.')(?:\'\))?');
 if (!defined('PATTERN_JQUERY_VAR'))			define('PATTERN_JQUERY_VAR', '\$\(\'#('.PATTERN_CSS_IDENTIFIER.')\s*('.PATTERN_VAR.')\'\)');
 if (!defined('CSS_ID_DELIM'))				define('CSS_ID_DELIM', '-');
 if (!defined('PATTERN_XL_ID'))				define('PATTERN_XL_ID', '[A-Z]+[\d]+');
+
+if (!defined('ID'))							define('ID', 'id');
+if (!defined('TITLE'))						define('TITLE', 'title');
+if (!defined('CLASSES'))					define('CLASSES', 'class');
+if (!defined('STYLE'))						define('STYLE', 'style');
 
 $pagevars= $this->pagevars;
 // $pagevar_value= $this->GetPageVariable($pagevar_key, ''); // $GLOBALS['wakka']->GetPageVariable(...)
@@ -154,14 +160,20 @@ $replace_camel_url_links= function ($cell)
 	return array(false, $cell);
 };
 
-$replace_jquery_var= function ($name)
-{
-	if (preg_match('/'.PATTERN_JQUERY_VAR.'/', $name, $a_vars))
-	{
-		$var= '$'. preg_replace('/[-]/', '_', $a_vars[1]) . '_' . $a_vars[2];
-		$selector= $a_vars[1] . CSS_ID_DELIM . $a_vars[2];
+$escaped_css_id_var= function ($css_id, $var) {
+	return '$'. preg_replace('/['. CSS_ID_DELIM .']/', '_', $css_id) . '_' . $var;
+};
 
-		return array(true, $selector, $var);
+$replace_jquery_var= function ($name) use (&$escaped_css_id_var)
+{
+	if (preg_match('/'.PATTERN_JQUERY_VAR.'/', $name, $a_name))
+	{
+		list($css_id, $var)= $a_name;
+
+		$css_id_var= $escaped_css_id_var($css_id, $var);
+		$selector= $css_id . CSS_ID_DELIM . $var;
+
+		return array(true, $selector, $css_id_var);
 	}
 
 	return array(false, '', $name);
@@ -218,9 +230,9 @@ print "</style>\n";
 $TD_ws= ''; 
 $js_script= '';
 
+print '<script>function $(x) { return document.getElementById(x); }; var tcol={}; var trow={};</script>'. "\n";
 print '<table id="'. $ID_TABLE .'">'. "\n";
 // https://www.thoughtco.com/and-in-javascript-2037515
-$js_script.= 'function $(x) { return document.getElementById(x); }; var tcol={}; var trow={}; '. "\n";
 foreach ($ARRAY_CODE_LINES as $csv_row => $csv_line) 
 {
 	if (preg_match('/^#js!/', $csv_line, $js_line))
@@ -242,52 +254,112 @@ foreach ($ARRAY_CODE_LINES as $csv_row => $csv_line)
 	else 
 		print ($row %2) ? '<tr class="even" >' : '<tr class="odd" >';
 
+
 	foreach (preg_split('/'. $PATTERN_NO_SPLIT_QUOTED_DELIM .'/', $csv_line) as $col => $csv_cell)
 	{
-		$xl_id= $spreadsheet_baseZ($col) . $row;
-		$id= $ID_TABLE . CSS_ID_DELIM . $xl_id;
+		$attr[CLASSES]= ' row'. $row .' col'. $col;
 
-		$cell_style='';
+		$xl_id= $spreadsheet_baseZ($col) . $row;
+
+		$attr[ID]= $ID_TABLE . CSS_ID_DELIM . $xl_id;
+		$attr[TITLE]= '['. $xl_id .']';
+
+		$attr[STYLE]='';
+
+		$tag_style= '';
+		$tag_script= '';
+
 		$quotes= '';
 
 		// extract the cell out of it's quotes
 		//
-        if (preg_match('/^\s*("?)(.*?)\1\s*$/', $csv_cell, $matches))
+        if (preg_match('/^\s*("?)(.*?)\1\s*$/', $csv_cell, $a_matches))
 		{
-			$quotes= $matches[1];
-			$cell= $matches[2];
+			list(, $quotes, $cell)= $a_matches;
 
 			if ($quotes == '"')
-				$cell_style.= 'white-space:pre; ';
+				$attr[STYLE].= 'white-space:pre; ';
 		}
 
 		//-------------------------------------------------------------------------------------------------------------
 		// header
 
-		if (preg_match('/^\s*==(.*)==\s*$/', $cell, $a_header)) 
+		if (preg_match('/^\s*==\s*(.*?)\s*==\s*$/', $cell, $a_header)) 
 		{
-			$header= trim($a_header[1]);
-			$header= preg_replace('/'.PATTERN_NO_ESC.'\$ID/', $xl_id, $header);
+			list(,$header)= $a_header;
+			//TODO print '|'. $header .'|';
 
-			if (preg_match('/([\/\\\\|])(.*)\1$/', $header, $a_align)) 
+			// READ into variable
+			//
+			if (preg_match('/^\[(?:\$(\w*))?=(.*)?\]$/', $header, $a_header_t))
 			{
-				print '<style>';
-				switch ($a_align[1]) {
-					case '/' :	print '#'. $ID_TABLE .' .col'. $col .' { text-align:right; }';	break;
-					case '\\' :	print '#'. $ID_TABLE .' .col'. $col .' { text-align:left; }';	break;
-					case '|' :	print '#'. $ID_TABLE .' .col'. $col .' { text-align:center; }';	break;
+				//TODO deal with [$var=] and [=]
+
+				list(, $decl_var, $decl_value)= $a_header_t;
+
+				//if (!empty( $decl_var ))
+				//	$attr[ID]= $ID_TABLE . CSS_ID_DELIM . $decl_var;
+
+				//TODO: should be possible to add totals in a accu 
+
+				if ($decl_value == '|++')
+				{
+					if (isset($total['col'][$col]) )
+					{
+						$dim= 'col'; $idx= $col;
+	
+						$attr[CLASSES].= ' total';
+						$header= 'ERROR!';
+						$tag_script.= 'if (t'.$dim.'['.$idx.'] !== undefined) $("'. $attr[ID] .'").innerHTML= '. $js_toFixed('t'.$dim.'['.$idx.']') .'; '. "\n";
+	
+						if (!empty( $decl_var ))
+							$tag_script.= 'var '. $escaped_css_id_var($ID_TABLE, $decl_var) .'= $("'. $attr[ID] .'"); '. "\n";
+	
+						unset($total[$dim][$idx]);
+					}
+					else
+					{
+						$attr[CLASSES].= ' warning ';
+						$header= 'SYNTAX';
+					}
 				}
-				print '</style>';
 
-				$header= $a_align[2];
-			}
+				else if ($decl_value == '++_')
+				{
+					if (isset($total['row'][$row]) )
+					{
+						$dim= 'row'; $idx= $row;
 
-			if (preg_match('/^(?:\$(\w*))?\[\.\.\.\]$/', $header, $a_header_t))
-			{
-				$var_name= $a_header_t[1];
-				if (isset( $var_name ))
-					$id= $ID_TABLE . CSS_ID_DELIM . $var_name;
+						$attr[CLASSES].= ' total';
+						$header= 'ERROR!';
+						$tag_script.= 'if (t'.$dim.'['.$idx.'] !== undefined) $("'. $attr[ID] .'").innerHTML= '. $js_toFixed('t'.$dim.'['.$idx.']') .'; '. "\n";
 
+						if (!empty( $decl_var ))
+							$tag_script.= 'var '. $escaped_css_id_var($ID_TABLE, $decl_var) .'= $("'. $attr[ID] .'"); '. "\n";
+
+						unset($total[$dim][$idx]);
+					}
+					else
+					{
+						$attr[CLASSES].= ' warning ';
+						$header= 'SYNTAX';
+					}
+				}
+
+				else 
+				{
+					if (empty($decl_value))
+						$decl_value= '\'\'';
+
+					$header= $decl_value;
+					//$header= 'ERROR!';
+					//$tag_script.= '$("'. $attr[ID] .'").innerHTML= '. $decl_value .'; '. "\n";
+
+					if (!empty( $decl_var ))
+						$tag_script.= 'var '. $escaped_css_id_var($ID_TABLE, $decl_var) .'= $("'. $attr[ID] .'"); '. "\n";
+				}
+
+				/*
 				//TODO: should be possible to add totals in a accu 
 				if ( isset($total['col'][$col]) xor isset($total['row'][$row]) )
 				{
@@ -307,36 +379,67 @@ foreach ($ARRAY_CODE_LINES as $csv_row => $csv_line)
 					continue;
 				}
 
-				print $TD_ws. '<th id="'. $id .'" class="warning total row'. $row .' col'. $col .'" title="['. $xl_id .']" >SYNTAX!</th>';
-
+				//TODO
 				foreach (array('row' => $row, 'col' => $col) as $dim => $idx)
 					if ( isset($total[$dim][$idx]) )
 						unset($total[$dim][$idx]);
-
-				continue;
+				*/
 			}
 
-			//TODO: undefined all tcol and trow in js at the end of the script
+			//TODO $header= preg_replace('/'.PATTERN_NO_ESC.'\$ID/', $xl_id, $header);
 
-			if (preg_match('/^(.*)\s*'.PATTERN_NO_ESC.'([+#])\2$/', $header, $a_accum)) {
-				$header= $a_accum[1];
-				$total['col'][$col]= true;
-				$js_script.= 'tcol['.$col.']= 0; '. "\n";
+			// Write variable
+			//
+			elseif (preg_match('/'.PATTERN_SIMPLE_VAR.'/', $header, $a_simple_var))
+			{
+				list(, $var_name)= $a_simple_var;
+				$css_id_var= $escaped_css_id_var($ID_TABLE, $var_name);
+
+				$header= 'ERROR!';
+				$tag_script.= 'if ('. $css_id_var .' !== undefined) $("'. $attr[ID] .'").innerHTML= '. $css_id_var .'.innerHTML; '. "\n";
 			}
-			elseif (preg_match('/^'.PATTERN_NO_ESC.'([+#])\1(.*)\s*$/', $header, $a_accum)) {
-				$header= $a_accum[2];
-				$total['row'][$row]= true;
-				$js_script.= 'trow['.$row.']= 0; '. "\n";
+
+			// handle non-variable header
+			//
+			else
+			{
+				if (preg_match('/([\/\\\\|])(.*)\1$/', $header, $a_header)) 
+				{
+					list(, $align, $header)= $a_header;
+
+					switch ($align) {
+						case '/' :	$tag_style.= '#'. $ID_TABLE .' .col'. $col .' { text-align:right; }';	break;
+						case '\\' :	$tag_style.= '#'. $ID_TABLE .' .col'. $col .' { text-align:left; }';	break;
+						case '|' :	$tag_style.= '#'. $ID_TABLE .' .col'. $col .' { text-align:center; }';	break;
+					}
+				}
+
+				//TODO: undefined all tcol and trow in js at the end of the script
+	
+				if (preg_match('/^(.*)\s*'.PATTERN_NO_ESC.'([+#])\2$/', $header, $a_accum)) {
+					$header= $a_accum[1];
+					$total['col'][$col]= true;
+					$tag_script.= 'tcol['.$col.']= 0; '. "\n";
+				}
+				elseif (preg_match('/^'.PATTERN_NO_ESC.'([+#])\1(.*)\s*$/', $header, $a_accum)) {
+					$header= $a_accum[2];
+					$total['row'][$row]= true;
+					$tag_script.= 'trow['.$row.']= 0; '. "\n";
+				}
+
+				if ($quotes != '"')
+					$header= preg_replace('/[\\\](.)/', '\1', $header);
+
+				$header= $this->htmlspecialchars_ent($header);
+
+				list(, $header)= $replace_camel_url_links($header);
 			}
 
-			if ($quotes != '"')
-				$header= preg_replace('/[\\\](.)/', '\1', $header);
+			print $TD_ws; 
+			print ((empty($tag_style)) ? '' : '<style>'. $tag_style .'</style>');
+			print '<th id="'. $attr[ID] .'" class="'. $attr[CLASSES] .'" style="'. $attr[STYLE] .'" >'. $header .'</th>';
+			print ((empty($tag_script)) ? '' : "\n". '<script>'. $tag_script .'</script>');
 
-			$header= $this->htmlspecialchars_ent($header);
-
-			list(, $header)= $replace_camel_url_links($header);
-
-			print $TD_ws. '<th id="'. $id .'" class="row'. $row .' col'. $col .'" style="'. $cell_style .'" >'. $header .'</th>';
 			continue;
 		}
 
@@ -346,10 +449,12 @@ foreach ($ARRAY_CODE_LINES as $csv_row => $csv_line)
 		if ($quotes != '"')
 			$cell= preg_replace('/[\\\](.)/', '\1', $cell);
 
+		$cell= preg_replace('/'.PATTERN_NO_ESC.'\$ID/', $xl_id, $cell);
+
 		if ( isset($total['col'][$col]) || isset($total['row'][$row]) )
 		{
 			if (trim($cell) == '_') {
-				print $TD_ws. '<td id="'. $id .'" class="accu row'.$row .' col'.$col .'" title="['. $xl_id .']" >&nbsp;</td>';
+				print $TD_ws. '<td id="'. $attr[ID] .'" class="accu row'.$row .' col'.$col .'" title="['. $xl_id .']" >&nbsp;</td>';
 				continue;
 			}
 
@@ -358,9 +463,8 @@ foreach ($ARRAY_CODE_LINES as $csv_row => $csv_line)
 
 			$title= $cell;
 			list($success, $nr, $format, $currency)= $parse_number($cell);
-			print_r($cell);
 
-			print $TD_ws. '<td id="'. $id .'" class="accu '. (($nr <= 0) ? 'warning' : '' ) .' row'.$row .' col'.$col .'" title="['. $xl_id .'] '. $title .'('. $format .')" >ERROR!</td>';
+			print $TD_ws. '<td id="'. $attr[ID] .'" class="accu '. (($nr <= 0) ? 'warning' : '' ) .' row'.$row .' col'.$col .'" title="['. $xl_id .'] '. $title .'('. $format .')" >ERROR!</td>';
 
 			foreach (array('row' => $row, 'col' => $col) as $dim => $idx)
 				if ( isset($total[$dim][$idx]) )
@@ -368,20 +472,20 @@ foreach ($ARRAY_CODE_LINES as $csv_row => $csv_line)
 					list($replaced, $selector, $var)= $replace_jquery_var($cell);
 
 					if ($success)
-						$js_script.= '$("'. $id .'").innerHTML= '. $js_toFixed($nr) .'; if (t'.$dim.'['.$idx.'] !== undefined) t'.$dim.'['.$idx.']+= Number('. $nr .'); '. "\n";
-						//TODO $js_script.= '$("'. $id .'").innerHTML= '. $js_toFixed($nr) .''. $currency .'; if (t'.$dim.'['.$idx.'] !== undefined) t'.$dim.'['.$idx.']+= Number('. $nr .'); '. "\n";
+						$js_script.= '$("'. $attr[ID] .'").innerHTML= '. $js_toFixed($nr) .'; if (t'.$dim.'['.$idx.'] !== undefined) t'.$dim.'['.$idx.']+= Number('. $nr .'); '. "\n";
+						//TODO $js_script.= '$("'. $attr[ID] .'").innerHTML= '. $js_toFixed($nr) .''. $currency .'; if (t'.$dim.'['.$idx.'] !== undefined) t'.$dim.'['.$idx.']+= Number('. $nr .'); '. "\n";
 
 					elseif (preg_match('/^\$'.PATTERN_VAR.'$/', $cell, $a_vars))
 					{
 						$var= $a_vars[0];
-						$js_script.= '$("'. $id .'").innerHTML= '. $js_toFixed($var) .'; if ('. $var .' > 0) $("'. $id .'").classList.remove("warning"); '. "\n";
+						$js_script.= '$("'. $attr[ID] .'").innerHTML= '. $js_toFixed($var) .'; if ('. $var .' > 0) $("'. $attr[ID] .'").classList.remove("warning"); '. "\n";
 						$js_script.= 'if ('. $var. ' === undefined) t'.$dim.'['.$idx.']= undefined; else if (t'.$dim.'['.$idx.'] !== undefined) t'.$dim.'['.$idx.']+= Number('. $var .'); '. "\n";
 					}
 
 					elseif ($replaced)
 					{
 						$js_script.= 'var '. $var .'= ('. $var.'_td= $("'. $selector .'")) ? '. $var.'_td.innerHTML : undefined; '. $var.'_td= undefined;' ."\n";
-						$js_script.= '$("'. $id .'").innerHTML= '. $js_toFixed($var) .'; if ('. $var .' > 0) $("'. $id .'").classList.remove("warning"); '. "\n";
+						$js_script.= '$("'. $attr[ID] .'").innerHTML= '. $js_toFixed($var) .'; if ('. $var .' > 0) $("'. $attr[ID] .'").classList.remove("warning"); '. "\n";
 						$js_script.= 'if ('. $var. ' === undefined) t'.$dim.'['.$idx.']= undefined; else if (t'.$dim.'['.$idx.'] !== undefined) t'.$dim.'['.$idx.']+= Number('. $var .'); '. "\n";
 					}
 					else
@@ -395,17 +499,15 @@ foreach ($ARRAY_CODE_LINES as $csv_row => $csv_line)
 		//
 		if (preg_match('/^\s*$/',$cell)) 
 		{
-			print $TD_ws. '<td id="'. $id .'" class="row'. $row .' col'. $col .'" >&nbsp;</td>';
+			print $TD_ws. '<td id="'. $attr[ID] .'" class="row'. $row .' col'. $col .'" >&nbsp;</td>';
 			continue;
 		}
-
-		$cell= preg_replace('/'.PATTERN_NO_ESC.'\$ID/', $xl_id, $cell);
 
 		$cell= $this->htmlspecialchars_ent($cell);
 
 		list(, $cell)= $replace_camel_url_links($cell);
 
-		print $TD_ws. '<td id="'. $id .'" class="row'. $row .' col'. $col .'" style="'. $cell_style .'" >'. $cell .'</td>';
+		print $TD_ws. '<td id="'. $attr[ID] .'" class="row'. $row .' col'. $col .'" style="'. $cell_style .'" >'. $cell .'</td>';
 
 	}
 	print "</tr>\n";
@@ -413,12 +515,10 @@ foreach ($ARRAY_CODE_LINES as $csv_row => $csv_line)
 }
 print "</table>\n";
 
-print "<script>\n". $js_script ."</script>\n";
-
 //---------------------------------------------------------------------------------------------------------------------
 
 // https://www.w3schools.com/js/js_htmldom_html.asp
-// https://playcode.io/
+// https://playcode.io/ promo code: b3M3O5bR
 
 $print_javascript= function () use (&$replace_jquery_var, &$ARRAY_CODE_LINES, &$ID_TABLE)
 {
