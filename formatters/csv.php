@@ -99,7 +99,7 @@ $js_toFixed= function($nr) use (&$parse_number_format, &$selected_formats)
 
 	if (!strcmp($places, '#~'))
 		return $nr;
-	return 'Number('. $nr .').toFixed('.strlen($places).')';
+	return 'Number('. $nr .').toFixed('.strlen($places).')'; // NOTE: .toFixed(...) returns a string!
 };
 
 // https://www.php.net/manual/en/functions.anonymous.php
@@ -310,12 +310,12 @@ foreach ($ARRAY_CODE_LINES as $csv_row => $csv_line)
 			if (preg_match('/^(.*)\s*'.PATTERN_NO_ESC.'([+#])\2$/', $cell, $a_accum)) {
 				$cell= $a_accum[1];
 				$total['col'][$col]= true;
-				$tag_script.= 'tcol['.$col.']= 0; '. "\n";
+				$tag_script.= 'tcol['.$col.']= Number(0); '. "\n";
 			}
 			elseif (preg_match('/^'.PATTERN_NO_ESC.'([+#])\1(.*)\s*$/', $cell, $a_accum)) {
 				$cell= $a_accum[2];
 				$total['row'][$row]= true;
-				$tag_script.= 'trow['.$row.']= 0; '. "\n";
+				$tag_script.= 'trow['.$row.']= Number(0); '. "\n";
 			}
 
 		}
@@ -339,50 +339,36 @@ foreach ($ARRAY_CODE_LINES as $csv_row => $csv_line)
 			//if (!empty( $decl_var ))
 			//	$attr[ID]= $ID_TABLE . CSS_ID_DELIM . $decl_var;
 
-			//TODO: should be possible to add totals in a accu 
+			$array= array(
+					'col' => array('|++', $col),
+					'row' => array('++_', $row),
+				);
 
-			if ($decl_value == '|++')
-			{
-				if (isset($total['col'][$col]) )
-				{
-					$dim= 'col'; $idx= $col;
+			if ( ($decl_value == $array['col'][0]) || ($decl_value == $array['row'][0]) )
+			{ 
+				$classes= ' warning ';
+				$cell= 'SYNTAX!';
 
-					$attr[CLASSES].= ' total';
-					$cell= 'ERROR!';
-					$tag_script.= 'if (t'.$dim.'['.$idx.'] !== undefined) $("'. $attr[ID] .'").innerHTML= '. $js_toFixed('t'.$dim.'['.$idx.']') .'; '. "\n";
+				foreach ($array as $rowcol => list($marker, $idx) )
+					if ( $decl_value == $marker && isset($total[$rowcol][$idx]) )
+					{
+						$classes= ' total';
+						$cell= 'ERROR!';
+						$tag_script.= 'if (t'.$rowcol.'['.$idx.'] !== undefined) $("'. $attr[ID] .'").innerHTML= '. $js_toFixed('t'.$rowcol.'['.$idx.']') .'; '. "\n";
+	
+						if (!empty( $decl_var ))
+							$tag_script.= 'var '. $escaped_css_id_var($ID_TABLE, $decl_var) .'= $("'. $attr[ID] .'"); '. "\n";
+	
+						unset( $total[$rowcol][$idx] );
+	
+						$o_rowcol= ($rowcol == 'row') ? 'col' : 'row';
+						list($o_marker, $o_idx)= $array[$o_rowcol];
 
-					if (!empty( $decl_var ))
-						$tag_script.= 'var '. $escaped_css_id_var($ID_TABLE, $decl_var) .'= $("'. $attr[ID] .'"); '. "\n";
+						if (isset($total[$o_rowcol][$o_idx]) )
+							$tag_script.= 'if (t'.$rowcol.'['.$idx.'] !== undefined) t'.$o_rowcol.'['.$o_idx.']+= Number('. 't'.$rowcol.'['.$idx.']' .'); '. "\n";
+					}
 
-					unset($total[$dim][$idx]);
-				}
-				else
-				{
-					$attr[CLASSES].= ' warning ';
-					$cell= 'SYNTAX!';
-				}
-			}
-
-			else if ($decl_value == '++_')
-			{
-				if (isset($total['row'][$row]) )
-				{
-					$dim= 'row'; $idx= $row;
-
-					$attr[CLASSES].= ' total';
-					$cell= 'ERROR!';
-					$tag_script.= 'if (t'.$dim.'['.$idx.'] !== undefined) $("'. $attr[ID] .'").innerHTML= '. $js_toFixed('t'.$dim.'['.$idx.']') .'; '. "\n";
-
-					if (!empty( $decl_var ))
-						$tag_script.= 'var '. $escaped_css_id_var($ID_TABLE, $decl_var) .'= $("'. $attr[ID] .'"); '. "\n";
-
-					unset($total[$dim][$idx]);
-				}
-				else
-				{
-					$attr[CLASSES].= ' warning ';
-					$cell= 'SYNTAX!';
-				}
+				$attr[CLASSES].= $classes;
 			}
 
 			else 
@@ -397,32 +383,6 @@ foreach ($ARRAY_CODE_LINES as $csv_row => $csv_line)
 				if (!empty( $decl_var ))
 					$tag_script.= 'var '. $escaped_css_id_var($ID_TABLE, $decl_var) .'= $("'. $attr[ID] .'"); '. "\n";
 			}
-
-			/*
-			//TODO: should be possible to add totals in a accu 
-			if ( isset($total['col'][$col]) xor isset($total['row'][$row]) )
-			{
-
-				foreach (array('row' => $row, 'col' => $col) as $dim => $idx)
-					if ( isset($total[$dim][$idx]) ) 
-					{
-						print $TD_ws. '<th id="'. $id .'" class="total row'. $row .' col'. $col .'" title="['. $xl_id .']" >ERROR!</th>';
-						$js_script.= 'if (t'.$dim.'['.$idx.'] !== undefined) $("'. $id .'").innerHTML= '. $js_toFixed('t'.$dim.'['.$idx.']') .'; '. "\n";
-
-						if (isset( $var_name ))
-							$js_script.= 'var $'. $var_name .'= t'.$dim.'['.$idx.']; '. "\n";
-
-						unset($total[$dim][$idx]);
-					}
-
-				continue;
-			}
-
-			//TODO
-			foreach (array('row' => $row, 'col' => $col) as $dim => $idx)
-				if ( isset($total[$dim][$idx]) )
-					unset($total[$dim][$idx]);
-			*/
 		}
 
 		// Write variable
