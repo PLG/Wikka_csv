@@ -292,10 +292,13 @@ foreach ($ARRAY_CODE_LINES as $csv_row => $csv_line)
 		//-------------------------------------------------------------------------------------------------------------
 		// header
 
+		$header= false;
+
 		if (preg_match('/^\s*==\s*(.*?)\s*==\s*$/', $cell, $a_header)) 
 		{
 			list(,$cell)= $a_header;
 
+			$header= true;
 			$tag= 'th';
 
 			if (preg_match('/([\/\\\\|])(.*)\1$/', $cell, $a_nonvar)) 
@@ -334,14 +337,18 @@ foreach ($ARRAY_CODE_LINES as $csv_row => $csv_line)
 		//-------------------------------------------------------------------------------------------------------------
 		//
 
+		$replaced= false;
+
 		$cell= preg_replace('/'.PATTERN_NO_ESC.'\$ID/', $xl_id, $cell);
 
 		// READ into variable
 		//
-		if (preg_match('/^\[(?:\$(\w*))?=(.*)?\]$/', $cell, $a_read_var))
+		if (preg_match('/^\[(?:\$('.PATTERN_VAR.'))?=(.*)?\]$/', $cell, $a_read_var))
 		{
 			list(, $decl_var, $decl_value)= $a_read_var;
 
+			// if cell contains vertical or horizontal accummulation marker
+			//			
 			if ( ($decl_value == $a_dimensions['col'][0]) || ($decl_value == $a_dimensions['row'][0]) )
 			{ 
 				$classes= ' warning ';
@@ -352,41 +359,36 @@ foreach ($ARRAY_CODE_LINES as $csv_row => $csv_line)
 					{
 						$classes= ' total';
 						$cell= 'ERROR!';
-						$tag_script.= 'if (t'.$rowcol.'['.$idx.'] !== undefined) $("'. $attr[ID] .'").innerHTML= '. $js_toFixed('t'.$rowcol.'['.$idx.']') .'; '. "\n";
-	
-						if (!empty( $decl_var ))
-							$tag_script.= 'var '. $escaped_css_id_var($ID_TABLE, $decl_var) .'= $("'. $attr[ID] .'"); '. "\n";
-	
-						unset( $total[$rowcol][$idx] );
-	
-						$o_rowcol= ($rowcol == 'row') ? 'col' : 'row';
-						list($o_marker, $o_idx)= $a_dimensions[$o_rowcol];
 
-						if (isset($total[$o_rowcol][$o_idx]) )
-							$tag_script.= 'if (t'.$rowcol.'['.$idx.'] !== undefined) t'.$o_rowcol.'['.$o_idx.']+= Number('. 't'.$rowcol.'['.$idx.']' .'); '. "\n";
+						$tag_script.= 'if (t'.$rowcol.'['.$idx.'] !== undefined) $("'. $attr[ID] .'").innerHTML= '. $js_toFixed('t'.$rowcol.'['.$idx.']') .'; '. "\n";
+						$replaced= true;
+
+						unset( $total[$rowcol][$idx] );
 					}
 
 				$attr[CLASSES].= $classes;
 			}
 
+			// variable assignment [$decl_var=decl_value]
+			//
 			else 
 			{
 				if (empty($decl_value))
 					$decl_value= '\'\'';
 
 				$cell= $decl_value;
-
-				if (!empty( $decl_var ))
-					$tag_script.= 'var '. $escaped_css_id_var($ID_TABLE, $decl_var) .'= $("'. $attr[ID] .'"); '. "\n";
 			}
+
+			if (!empty( $decl_var ))
+				$tag_script.= 'var '. $escaped_css_id_var($ID_TABLE, $decl_var) .'= $("'. $attr[ID] .'"); '. "\n";
 		}
 
-		// Write variable
+		// Write out variable
 		//
 		// https://www.regular-expressions.info/recurse.html
-		elseif (preg_match('/^\$(?:('.PATTERN_VAR.')|\[\'(?:(?:#('.PATTERN_CSS_IDENTIFIER.')\s*)?('.PATTERN_VAR.')|(?R))*\'\])$/', $cell, $a_write_var))
+		elseif (preg_match('/^(-)?\s*\$(?:('.PATTERN_VAR.')|\[\'(?:(?:#('.PATTERN_CSS_IDENTIFIER.')\s*)?('.PATTERN_VAR.')|(?R))*\'\])$/', $cell, $a_write_var))
 		{
-			list(, $simple_var, $table_name, $table_var)= $a_write_var;
+			list(, $neg, $simple_var, $table_name, $table_var)= $a_write_var;
 
 			$cell= 'ERROR!';
 
@@ -395,58 +397,47 @@ foreach ($ARRAY_CODE_LINES as $csv_row => $csv_line)
 				$table_name= $ID_TABLE;
 
 			$css_id_var= $escaped_css_id_var($table_name, $var_name);
-			$tag_script.= 'if ('. $css_id_var .' !== undefined) $("'. $attr[ID] .'").innerHTML= '. $css_id_var .'.innerHTML; '. "\n";
+
+			$tag_script.= 'if ('. $css_id_var .' !== undefined) $("'. $attr[ID] .'").innerHTML= '. $neg . $css_id_var .'.innerHTML; '. "\n";
+			$replaced= true;
 		}
 
 		// calculate totals
 		//
 		if ( isset($total['col'][$col]) || isset($total['row'][$row]) )
 		{
-			/*
-			//TODO
-			if (trim($cell) == '_') {
-				print $TD_ws. '<td id="'. $attr[ID] .'" class="accu row'.$row .' col'.$col .'" title="['. $xl_id .']" >&nbsp;</td>';
-				continue;
-			}
-			*/
-
 			//TODO if USD is appended to the end of a cell, that means variable replacement should move here, so that the replacement is also parsed for currency
 			// Also, in js, you will get '234.34 USD' when reading out a variable. Users will need string parsing tools then. argh!
 
-			list($success, $nr, $format, $currency)= $parse_number($cell);
 
 			//TODO $attr[CLASSES].= ' accu'. (($nr <= 0) ? ' warning' : '' );
-			$attr[TITLE].= ' '. $cell .'('. $format .')';
 
 			foreach ($a_dimensions as $rowcol => list(, $idx) )
 				if ( isset($total[$rowcol][$idx]) )
 				{
-					//list($replaced, $selector, $var)= $replace_jquery_var($cell);
 
-					if ($success)
-						$tag_script.= '$("'. $attr[ID] .'").innerHTML= '. $js_toFixed($nr) .'; if (t'.$rowcol.'['.$idx.'] !== undefined) t'.$rowcol.'['.$idx.']+= Number('. $nr .'); '. "\n";
-						//TODO $js_script.= '$("'. $attr[ID] .'").innerHTML= '. $js_toFixed($nr) .''. $currency .'; if (t'.$dim.'['.$idx.'] !== undefined) t'.$dim.'['.$idx.']+= Number('. $nr .'); '. "\n";
-
-					/*
-					//TODO
-					elseif (preg_match('/^\$'.PATTERN_VAR.'$/', $cell, $a_vars))
+					if ($replaced)
 					{
-						$var= $a_vars[0];
-						$js_script.= '$("'. $attr[ID] .'").innerHTML= '. $js_toFixed($var) .'; if ('. $var .' > 0) $("'. $attr[ID] .'").classList.remove("warning"); '. "\n";
-						$js_script.= 'if ('. $var. ' === undefined) t'.$dim.'['.$idx.']= undefined; else if (t'.$dim.'['.$idx.'] !== undefined) t'.$dim.'['.$idx.']+= Number('. $var .'); '. "\n";
+						$tag_script.= 't'.$rowcol.'['.$idx.']+= Number( $("'. $attr[ID] .'").innerHTML ); if (isNaN(t'.$rowcol.'['.$idx.'])) t'.$rowcol.'['.$idx.']= undefined; '. "\n";
+
+						//TODO $js_script.= '$("'. $attr[ID] .'").innerHTML= '. $js_toFixed($var) .'; if ('. $var .' > 0) $("'. $attr[ID] .'").classList.remove("warning"); '. "\n";
 					}
 
-					elseif ($replaced)
+					elseif ($cell != '_' && !$header)
 					{
-						$js_script.= 'var '. $var .'= ('. $var.'_td= $("'. $selector .'")) ? '. $var.'_td.innerHTML : undefined; '. $var.'_td= undefined;' ."\n";
-						$js_script.= '$("'. $attr[ID] .'").innerHTML= '. $js_toFixed($var) .'; if ('. $var .' > 0) $("'. $attr[ID] .'").classList.remove("warning"); '. "\n";
-						$js_script.= 'if ('. $var. ' === undefined) t'.$dim.'['.$idx.']= undefined; else if (t'.$dim.'['.$idx.'] !== undefined) t'.$dim.'['.$idx.']+= Number('. $var .'); '. "\n";
-					}
-					else
-						$js_script.= 't'.$dim.'['.$idx.']= undefined; '. "\n";
+						list($success, $nr, $format, $currency)= $parse_number($cell);
+						
+						$attr[TITLE].= ' '. $cell .'('. $format .' '. $currency .')';
 
-					*/
+						if ($success)
+							$tag_script.= '$("'. $attr[ID] .'").innerHTML= '. $js_toFixed($nr) .'; if (t'.$rowcol.'['.$idx.'] !== undefined) t'.$rowcol.'['.$idx.']+= Number('. $nr .'); '. "\n";
+							//TODO $js_script.= '$("'. $attr[ID] .'").innerHTML= '. $js_toFixed($nr) .''. $currency .'; if (t'.$dim.'['.$idx.'] !== undefined) t'.$dim.'['.$idx.']+= Number('. $nr .'); '. "\n";
+
+						else
+							$tag_script.= 't'.$rowcol.'['.$idx.']= undefined; '. "\n";
+					}
 				}
+
 		}
 
 		//-------------------------------------------------------------------------------------------------------------
