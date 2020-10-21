@@ -22,7 +22,6 @@ if (!defined('PATTERN_CSS_IDENTIFIER'))		define('PATTERN_CSS_IDENTIFIER', '-?[_a
 if (!defined('PATTERN_CSS_DECLARATION'))	define('PATTERN_CSS_DECLARATION', '(?:a|table|t[hrd])?(?:[:\.#]'.PATTERN_CSS_IDENTIFIER.')*');
 if (!defined('PATTERN_CSS_RULE'))			define('PATTERN_CSS_RULE', '('.PATTERN_CSS_DECLARATION.'(?:,\s*'.PATTERN_CSS_DECLARATION.')*)\s*(\{.*\})');
 if (!defined('PATTERN_VAR'))				define('PATTERN_VAR', '[a-zA-Z_]\w*');
-if (!defined('PATTERN_SIMPLE_VAR'))			define('PATTERN_SIMPLE_VAR', '\$(?:\(\')?('.PATTERN_VAR.')(?:\'\))?');
 if (!defined('PATTERN_JQUERY_VAR'))			define('PATTERN_JQUERY_VAR', '\$\(\'#('.PATTERN_CSS_IDENTIFIER.')\s*('.PATTERN_VAR.')\'\)');
 if (!defined('CSS_ID_DELIM'))				define('CSS_ID_DELIM', '-');
 if (!defined('PATTERN_XL_ID'))				define('PATTERN_XL_ID', '[A-Z]+[\d]+');
@@ -257,6 +256,11 @@ foreach ($ARRAY_CODE_LINES as $csv_row => $csv_line)
 
 	foreach (preg_split('/'. $PATTERN_NO_SPLIT_QUOTED_DELIM .'/', $csv_line) as $col => $csv_cell)
 	{
+		$a_dimensions= array(
+				'col' => array('|++', $col),
+				'row' => array('++_', $row),
+			);
+
 		$attr[CLASSES]= ' row'. $row .' col'. $col;
 
 		$xl_id= $spreadsheet_baseZ($col) . $row;
@@ -330,26 +334,20 @@ foreach ($ARRAY_CODE_LINES as $csv_row => $csv_line)
 		//-------------------------------------------------------------------------------------------------------------
 		//
 
+		$cell= preg_replace('/'.PATTERN_NO_ESC.'\$ID/', $xl_id, $cell);
+
 		// READ into variable
 		//
 		if (preg_match('/^\[(?:\$(\w*))?=(.*)?\]$/', $cell, $a_read_var))
 		{
 			list(, $decl_var, $decl_value)= $a_read_var;
 
-			//if (!empty( $decl_var ))
-			//	$attr[ID]= $ID_TABLE . CSS_ID_DELIM . $decl_var;
-
-			$array= array(
-					'col' => array('|++', $col),
-					'row' => array('++_', $row),
-				);
-
-			if ( ($decl_value == $array['col'][0]) || ($decl_value == $array['row'][0]) )
+			if ( ($decl_value == $a_dimensions['col'][0]) || ($decl_value == $a_dimensions['row'][0]) )
 			{ 
 				$classes= ' warning ';
 				$cell= 'SYNTAX!';
 
-				foreach ($array as $rowcol => list($marker, $idx) )
+				foreach ($a_dimensions as $rowcol => list($marker, $idx) )
 					if ( $decl_value == $marker && isset($total[$rowcol][$idx]) )
 					{
 						$classes= ' total';
@@ -362,7 +360,7 @@ foreach ($ARRAY_CODE_LINES as $csv_row => $csv_line)
 						unset( $total[$rowcol][$idx] );
 	
 						$o_rowcol= ($rowcol == 'row') ? 'col' : 'row';
-						list($o_marker, $o_idx)= $array[$o_rowcol];
+						list($o_marker, $o_idx)= $a_dimensions[$o_rowcol];
 
 						if (isset($total[$o_rowcol][$o_idx]) )
 							$tag_script.= 'if (t'.$rowcol.'['.$idx.'] !== undefined) t'.$o_rowcol.'['.$o_idx.']+= Number('. 't'.$rowcol.'['.$idx.']' .'); '. "\n";
@@ -377,8 +375,6 @@ foreach ($ARRAY_CODE_LINES as $csv_row => $csv_line)
 					$decl_value= '\'\'';
 
 				$cell= $decl_value;
-				//$cell= 'ERROR!';
-				//$tag_script.= '$("'. $attr[ID] .'").innerHTML= '. $decl_value .'; '. "\n";
 
 				if (!empty( $decl_var ))
 					$tag_script.= 'var '. $escaped_css_id_var($ID_TABLE, $decl_var) .'= $("'. $attr[ID] .'"); '. "\n";
@@ -387,19 +383,19 @@ foreach ($ARRAY_CODE_LINES as $csv_row => $csv_line)
 
 		// Write variable
 		//
-		elseif (preg_match('/'.PATTERN_SIMPLE_VAR.'/', $cell, $a_simple_var))
+		// https://www.regular-expressions.info/recurse.html
+		elseif (preg_match('/^\$(?:('.PATTERN_VAR.')|\[\'(?:(?:#('.PATTERN_CSS_IDENTIFIER.')\s*)?('.PATTERN_VAR.')|(?R))*\'\])$/', $cell, $a_write_var))
 		{
-			list(, $var_name)= $a_simple_var;
+			list(, $simple_var, $table_name, $table_var)= $a_write_var;
 
-			if ($var_name == 'ID')
-				$cell= preg_replace('/'.PATTERN_NO_ESC.'\$ID/', $xl_id, $cell);
-			else
-			{
-				$css_id_var= $escaped_css_id_var($ID_TABLE, $var_name);
+			$cell= 'ERROR!';
 
-				$cell= 'ERROR!';
-				$tag_script.= 'if ('. $css_id_var .' !== undefined) $("'. $attr[ID] .'").innerHTML= '. $css_id_var .'.innerHTML; '. "\n";
-			}
+			$var_name= !empty($simple_var) ? $simple_var : $table_var;
+			if (empty($table_name))
+				$table_name= $ID_TABLE;
+
+			$css_id_var= $escaped_css_id_var($table_name, $var_name);
+			$tag_script.= 'if ('. $css_id_var .' !== undefined) $("'. $attr[ID] .'").innerHTML= '. $css_id_var .'.innerHTML; '. "\n";
 		}
 
 		// calculate totals
@@ -422,13 +418,13 @@ foreach ($ARRAY_CODE_LINES as $csv_row => $csv_line)
 			//TODO $attr[CLASSES].= ' accu'. (($nr <= 0) ? ' warning' : '' );
 			$attr[TITLE].= ' '. $cell .'('. $format .')';
 
-			foreach (array('row' => $row, 'col' => $col) as $dim => $idx)
-				if ( isset($total[$dim][$idx]) )
+			foreach ($a_dimensions as $rowcol => list(, $idx) )
+				if ( isset($total[$rowcol][$idx]) )
 				{
-					list($replaced, $selector, $var)= $replace_jquery_var($cell);
+					//list($replaced, $selector, $var)= $replace_jquery_var($cell);
 
 					if ($success)
-						$tag_script.= '$("'. $attr[ID] .'").innerHTML= '. $js_toFixed($nr) .'; if (t'.$dim.'['.$idx.'] !== undefined) t'.$dim.'['.$idx.']+= Number('. $nr .'); '. "\n";
+						$tag_script.= '$("'. $attr[ID] .'").innerHTML= '. $js_toFixed($nr) .'; if (t'.$rowcol.'['.$idx.'] !== undefined) t'.$rowcol.'['.$idx.']+= Number('. $nr .'); '. "\n";
 						//TODO $js_script.= '$("'. $attr[ID] .'").innerHTML= '. $js_toFixed($nr) .''. $currency .'; if (t'.$dim.'['.$idx.'] !== undefined) t'.$dim.'['.$idx.']+= Number('. $nr .'); '. "\n";
 
 					/*
