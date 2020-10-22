@@ -191,8 +191,8 @@ $css['th, td']= '{ padding: 1px 10px 1px 10px; }';
 $css['th']= '{ background-color:#ccc; }'; 
 $css['tr.even']= '{ background-color:#ffe; }';
 $css['tr.odd']= '{ background-color:#eee; }';
-//$css['.warning']= '{ background-color:#f00; }';
-$css['.warning']= '{ background-color:#fcc; border: 2px solid red; border-collapse: collapse; }';
+//$css['.negative']= '{ background-color:#f00; }';
+$css['.negative']= '{ background-color:#fcc; border: 2px solid red; border-collapse: collapse; }';
 $css['.total']= '{ border: 1px solid black; border-collapse: collapse; }';
 $css['a:link']= '{ color: blue; }';
 $css['a:visited']= '{ color: blue; }';
@@ -351,13 +351,12 @@ foreach ($ARRAY_CODE_LINES as $csv_row => $csv_line)
 			//			
 			if ( ($decl_value == $a_dimensions['col'][0]) || ($decl_value == $a_dimensions['row'][0]) )
 			{ 
-				$classes= ' warning ';
 				$cell= 'SYNTAX!';
 
 				foreach ($a_dimensions as $rowcol => list($marker, $idx) )
 					if ( $decl_value == $marker && isset($total[$rowcol][$idx]) )
 					{
-						$classes= ' total';
+						$attr[CLASSES].= ' total';
 						$cell= 'ERROR!';
 
 						$tag_script.= 'if (t'.$rowcol.'['.$idx.'] !== undefined) $("'. $attr[ID] .'").innerHTML= '. $js_toFixed('t'.$rowcol.'['.$idx.']') .'; '. "\n";
@@ -365,8 +364,6 @@ foreach ($ARRAY_CODE_LINES as $csv_row => $csv_line)
 
 						unset( $total[$rowcol][$idx] );
 					}
-
-				$attr[CLASSES].= $classes;
 			}
 
 			// variable assignment [$decl_var=decl_value]
@@ -377,6 +374,10 @@ foreach ($ARRAY_CODE_LINES as $csv_row => $csv_line)
 					$decl_value= '\'\'';
 
 				$cell= $decl_value;
+
+				list($success, $nr, $format, $currency)= $parse_number($cell);
+				if ($success)
+					$attr[CLASSES].= (($nr < 0) ? ' negative' : '' );
 			}
 
 			if (!empty( $decl_var ))
@@ -399,6 +400,9 @@ foreach ($ARRAY_CODE_LINES as $csv_row => $csv_line)
 			$css_id_var= $escaped_css_id_var($table_name, $var_name);
 
 			$tag_script.= 'if ('. $css_id_var .' !== undefined) $("'. $attr[ID] .'").innerHTML= '. $neg . $css_id_var .'.innerHTML; '. "\n";
+			$tag_script.= 'if ( !isNaN(Number($("'. $attr[ID] .'").innerHTML)) ) '
+				.'if (Number($("'. $attr[ID] .'").innerHTML) < 0) $("'. $attr[ID] .'").classList.add("negative"); else $("'. $attr[ID] .'").classList.remove("negative")'. "\n";
+			
 			$replaced= true;
 		}
 
@@ -409,19 +413,13 @@ foreach ($ARRAY_CODE_LINES as $csv_row => $csv_line)
 			//TODO if USD is appended to the end of a cell, that means variable replacement should move here, so that the replacement is also parsed for currency
 			// Also, in js, you will get '234.34 USD' when reading out a variable. Users will need string parsing tools then. argh!
 
-
-			//TODO $attr[CLASSES].= ' accu'. (($nr <= 0) ? ' warning' : '' );
-
 			foreach ($a_dimensions as $rowcol => list(, $idx) )
 				if ( isset($total[$rowcol][$idx]) )
 				{
+					$attr[CLASSES].= ' accu';
 
 					if ($replaced)
-					{
 						$tag_script.= 't'.$rowcol.'['.$idx.']+= Number( $("'. $attr[ID] .'").innerHTML ); if (isNaN(t'.$rowcol.'['.$idx.'])) t'.$rowcol.'['.$idx.']= undefined; '. "\n";
-
-						//TODO $js_script.= '$("'. $attr[ID] .'").innerHTML= '. $js_toFixed($var) .'; if ('. $var .' > 0) $("'. $attr[ID] .'").classList.remove("warning"); '. "\n";
-					}
 
 					elseif ($cell != '_' && !$header)
 					{
@@ -430,9 +428,12 @@ foreach ($ARRAY_CODE_LINES as $csv_row => $csv_line)
 						$attr[TITLE].= ' '. $cell .'('. $format .' '. $currency .')';
 
 						if ($success)
+						{
+							$attr[CLASSES].= (($nr < 0) ? ' negative' : '' );
+
 							$tag_script.= '$("'. $attr[ID] .'").innerHTML= '. $js_toFixed($nr) .'; if (t'.$rowcol.'['.$idx.'] !== undefined) t'.$rowcol.'['.$idx.']+= Number('. $nr .'); '. "\n";
 							//TODO $js_script.= '$("'. $attr[ID] .'").innerHTML= '. $js_toFixed($nr) .''. $currency .'; if (t'.$dim.'['.$idx.'] !== undefined) t'.$dim.'['.$idx.']+= Number('. $nr .'); '. "\n";
-
+						}
 						else
 							$tag_script.= 't'.$rowcol.'['.$idx.']= undefined; '. "\n";
 					}
@@ -465,6 +466,7 @@ print "</table>\n";
 
 // https://www.w3schools.com/js/js_htmldom_html.asp
 // https://playcode.io/ promo code: b3M3O5bR
+// https://www.w3schools.com/html/tryit.asp?filename=tryhtml_default
 
 $print_javascript= function () use (&$replace_jquery_var, &$ARRAY_CODE_LINES, &$ID_TABLE)
 {
@@ -536,12 +538,23 @@ $print_javascript= function () use (&$replace_jquery_var, &$ARRAY_CODE_LINES, &$
 	//
 	foreach ($assigned_names as $name) 
 	{
-		list($replaced, $selector, $var)= $replace_jquery_var($name);
+		$var= $name;
+		$css_id_var= '$("'. $ID_TABLE .'-'. $name .'")';
 
+		list($replaced, $selector, $var_name)= $replace_jquery_var($name);
 		if ($replaced)
-			print 'if ('. $var.'_td= $("'. $selector .'")) '. $var.'_td.innerHTML= '. $var .'; '. $var.'_td= undefined;' . "\n";
-		else
-			print 'if ('. $name.'_td= $("'. $ID_TABLE .'-'. $name .'")) '. $name.'_td.innerHTML= '. $name .'; '. $name.'_td= undefined;' . "\n";
+		{
+			$var= $var_name;
+			$css_id_var= '$("'. $selector .'")';
+		}
+
+		print 'if ('. $var.'_td= '. $css_id_var. ') { '. 
+			$var .'_td.innerHTML= '. $var .'; '.
+			'if ( !isNaN(Number('. $name.'_td.innerHTML)) ) '.
+				'if (Number('. $name.'_td.innerHTML) < 0) '. $name.'_td.classList.add("negative"); '.
+				'else '. $name.'_td.classList.remove("negative") '.
+		'} '. $var.'_td= undefined;' . "\n";
+				
 	}
 
 	// clean-up; undeclare all declared variables 
