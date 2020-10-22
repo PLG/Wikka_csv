@@ -292,13 +292,10 @@ foreach ($ARRAY_CODE_LINES as $csv_row => $csv_line)
 		//-------------------------------------------------------------------------------------------------------------
 		// header
 
-		$header= false;
-
 		if (preg_match('/^\s*==\s*(.*?)\s*==\s*$/', $cell, $a_header)) 
 		{
 			list(,$cell)= $a_header;
 
-			$header= true;
 			$tag= 'th';
 
 			if (preg_match('/([\/\\\\|])(.*)\1$/', $cell, $a_nonvar)) 
@@ -421,7 +418,7 @@ foreach ($ARRAY_CODE_LINES as $csv_row => $csv_line)
 					if ($replaced)
 						$tag_script.= 't'.$rowcol.'['.$idx.']+= Number( $("'. $attr[ID] .'").innerHTML ); if (isNaN(t'.$rowcol.'['.$idx.'])) t'.$rowcol.'['.$idx.']= undefined; '. "\n";
 
-					elseif ($cell != '_' && !$header)
+					elseif ($cell != '_' && $tag != 'th')
 					{
 						list($success, $nr, $format, $currency)= $parse_number($cell);
 						
