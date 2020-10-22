@@ -199,7 +199,7 @@ $css['a:visited']= '{ color: blue; }';
 
 foreach ($ARRAY_CODE_LINES as $row => $csv_line) 
 {
-	if ( preg_match('/^#!\s*'.PATTERN_CSS_RULE.'$/', $csv_line, $a_css) )
+	if ( preg_match('/^#css!\s*'.PATTERN_CSS_RULE.'$/', $csv_line, $a_css) )
 	{
 		$css[ $a_css[1] ]= $a_css[2];
 
