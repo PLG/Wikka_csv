@@ -22,10 +22,11 @@ if (!defined('PATTERN_CSS_IDENTIFIER'))		define('PATTERN_CSS_IDENTIFIER', '-?[_a
 if (!defined('PATTERN_CSS_DECLARATION'))	define('PATTERN_CSS_DECLARATION', '(?:a|table|t[hrd])?(?:[:\.#]'.PATTERN_CSS_IDENTIFIER.')*');
 if (!defined('PATTERN_CSS_RULE'))			define('PATTERN_CSS_RULE', '('.PATTERN_CSS_DECLARATION.'(?:,\s*'.PATTERN_CSS_DECLARATION.')*)\s*(\{.*\})');
 if (!defined('PATTERN_VAR'))				define('PATTERN_VAR', '[a-zA-Z_]\w*');
-if (!defined('PATTERN_JQUERY_VAR'))			define('PATTERN_JQUERY_VAR', '\$\(\'#('.PATTERN_CSS_IDENTIFIER.')\s*('.PATTERN_VAR.')\'\)');
-if (!defined('CSS_ID_DELIM'))				define('CSS_ID_DELIM', '-');
+if (!defined('PATTERN_SIMPLE_VAR'))			define('PATTERN_SIMPLE_VAR', '\$(\b'.PATTERN_VAR.'\b)(?!\'\])(?!\s*\.)'); // word boundaries, not ending with '] or .
+if (!defined('PATTERN_TABLE_VAR'))			define('PATTERN_TABLE_VAR', '\$\[\'(?:(?:#('.PATTERN_CSS_IDENTIFIER.')\s*)?('.PATTERN_VAR.')|(?R))*\'\]'); // recursive
 if (!defined('PATTERN_XL_ID'))				define('PATTERN_XL_ID', '[A-Z]+[\d]+');
 
+if (!defined('CSS_ID_DELIM'))				define('CSS_ID_DELIM', '-');
 if (!defined('ID'))							define('ID', 'id');
 if (!defined('TITLE'))						define('TITLE', 'title');
 if (!defined('CLASSES'))					define('CLASSES', 'class');
@@ -137,6 +138,10 @@ $parse_number= function ($cell) use (&$parse_number_format, &$selected_formats)
 
 //---------------------------------------------------------------------------------------------------------------------
 
+$_= function($var) {
+	return '$'. $var;
+};
+
 $replace_camel_url_links= function ($cell)
 {
 	// test of [[CamelLink]] and [[URL|name]]
@@ -160,9 +165,27 @@ $replace_camel_url_links= function ($cell)
 };
 
 $escaped_css_id_var= function ($css_id, $var) {
-	return '$'. preg_replace('/['. CSS_ID_DELIM .']/', '_', $css_id) . '_' . $var;
+	return preg_replace('/['. CSS_ID_DELIM .']/', '_', $css_id) . '_' . $var;
 };
 
+
+$qualified_var= function($ID_TABLE, $simple_var, $table_name, $table_var) use (&$escaped_css_id_var)
+{
+	if (!empty($simple_var))
+		return array($escaped_css_id_var($ID_TABLE, $simple_var), $simple_var);
+
+	elseif (!empty($table_var))
+	{
+		if (!empty($table_name))
+			return array($css_id_var= $escaped_css_id_var($table_name, $table_var), $escaped_css_id_var($table_name, $table_var));
+		else
+			return array($escaped_css_id_var($ID_TABLE, $table_var), $table_var);
+	}
+
+	return array($escaped_css_id_var($ID_TABLE, 'ERR'), 'ERR');
+};
+
+/*
 $replace_jquery_var= function ($name) use (&$escaped_css_id_var)
 {
 	if (preg_match('/'.PATTERN_JQUERY_VAR.'/', $name, $a_name))
@@ -177,6 +200,7 @@ $replace_jquery_var= function ($name) use (&$escaped_css_id_var)
 
 	return array(false, '', $name);
 };
+*/
 
 // https://stackoverflow.com/questions/3302857/algorithm-to-get-the-excel-like-column-name-of-a-number
 $spreadsheet_baseZ= function ($n) {
@@ -344,7 +368,7 @@ foreach ($ARRAY_CODE_LINES as $csv_row => $csv_line)
 		{
 			list(, $decl_var, $decl_value)= $a_read_var;
 
-			// if cell contains vertical or horizontal accummulation marker
+			// if cell contains [...=|++] or [...=++_] (vertical or horizontal accummulation marker)
 			//			
 			if ( ($decl_value == $a_dimensions['col'][0]) || ($decl_value == $a_dimensions['row'][0]) )
 			{ 
@@ -363,12 +387,12 @@ foreach ($ARRAY_CODE_LINES as $csv_row => $csv_line)
 					}
 			}
 
-			// variable assignment [$decl_var=decl_value]
+			// assign a value [...=decl_value]
 			//
 			else 
 			{
 				if (empty($decl_value))
-					$decl_value= '\'\'';
+					$decl_value= '&nbsp;';
 
 				$cell= $decl_value;
 
@@ -377,28 +401,25 @@ foreach ($ARRAY_CODE_LINES as $csv_row => $csv_line)
 					$attr[CLASSES].= (($nr < 0) ? ' negative' : '' );
 			}
 
+			// variable assignment [$decl_var=...]
+			//
 			if (!empty( $decl_var ))
-				$tag_script.= 'var '. $escaped_css_id_var($ID_TABLE, $decl_var) .'= $("'. $attr[ID] .'"); '. "\n";
+				$tag_script.= 'var '. $_($escaped_css_id_var($ID_TABLE, $decl_var)) .'= $("'. $attr[ID] .'"); '. "\n";
 		}
 
 		// Write out variable
 		//
 		// https://www.regular-expressions.info/recurse.html
-		elseif (preg_match('/^(-)?\s*\$(?:('.PATTERN_VAR.')|\[\'(?:(?:#('.PATTERN_CSS_IDENTIFIER.')\s*)?('.PATTERN_VAR.')|(?R))*\'\])$/', $cell, $a_write_var))
+		elseif (preg_match('/^(-)?\s*(?:'.PATTERN_SIMPLE_VAR.'|'.PATTERN_TABLE_VAR.')$/', $cell, $a_write_var))
 		{
 			list(, $neg, $simple_var, $table_name, $table_var)= $a_write_var;
+			list($css_id_var, $var)= $qualified_var($ID_TABLE, $simple_var, $table_name, $table_var);
 
 			$cell= 'ERROR!';
 
-			$var_name= !empty($simple_var) ? $simple_var : $table_var;
-			if (empty($table_name))
-				$table_name= $ID_TABLE;
-
-			$css_id_var= $escaped_css_id_var($table_name, $var_name);
-
-			$tag_script.= 'if ('. $css_id_var .' !== undefined) $("'. $attr[ID] .'").innerHTML= '. $neg . $css_id_var .'.innerHTML; '. "\n";
+			$tag_script.= 'if (typeof('. $_($css_id_var) .') !== \'undefined\') $("'. $attr[ID] .'").innerHTML= '. $neg . $_($css_id_var) .'.innerHTML; '. "\n";
 			$tag_script.= 'if ( !isNaN(Number($("'. $attr[ID] .'").innerHTML)) ) '
-				.'if (Number($("'. $attr[ID] .'").innerHTML) < 0) $("'. $attr[ID] .'").classList.add("negative"); else $("'. $attr[ID] .'").classList.remove("negative")'. "\n";
+				.'if (Number($("'. $attr[ID] .'").innerHTML) < 0) $("'. $attr[ID] .'").classList.add("negative"); else $("'. $attr[ID] .'").classList.remove("negative");'. "\n";
 			
 			$replaced= true;
 		}
@@ -465,16 +486,30 @@ print "</table>\n";
 // https://playcode.io/ promo code: b3M3O5bR
 // https://www.w3schools.com/html/tryit.asp?filename=tryhtml_default
 
-$print_javascript= function () use (&$replace_jquery_var, &$ARRAY_CODE_LINES, &$ID_TABLE)
+$print_javascript= function () use (&$_, &$escaped_css_id_var, &$qualified_var, &$ARRAY_CODE_LINES, &$ID_TABLE)
 {
 	$declared_names= array();
 	$assigned_names= array();
-	foreach ($ARRAY_CODE_LINES as $js_line) 
+	foreach ($ARRAY_CODE_LINES as $lnr => $js_line) 
 	{
-		if (preg_match_all('/'.PATTERN_JQUERY_VAR.'|'.PATTERN_XL_ID.'/', $js_line, $a_vars)) 
-			$declared_names= array_merge($declared_names, $a_vars[0]);
-		if (preg_match_all('/('.PATTERN_JQUERY_VAR.'|'.PATTERN_XL_ID.')\s*=/', $js_line, $a_vars))
-			$assigned_names= array_merge($assigned_names, $a_vars[1]);
+		if (!preg_match('/^#(?:js!)?/', $js_line))
+		{
+			print 'ERROR: line '. $lnr .': \''. $js_line .'\'' ."\n";
+			return;
+		}
+
+		if (!preg_match('/^#js!(?!\s*\/\/|\s*$)/', $js_line))
+		{
+			unset($ARRAY_CODE_LINES[$lnr]);
+			continue;
+		}
+
+		// preg_replace here, removes duplicates of the same declaration: $var2 and $['var2'] and $['#var-text var2']
+		//
+		if (preg_match_all('/'.PATTERN_SIMPLE_VAR.'|'.PATTERN_TABLE_VAR.'|'.PATTERN_XL_ID.'/', $js_line, $a_vars)) 
+			$declared_names= array_merge($declared_names, preg_replace('/\[\'(#'.$ID_TABLE.')?\s*([a-zA-Z_]\w*)\'\]/', '$2', $a_vars[0]));
+		if (preg_match_all('/('.PATTERN_SIMPLE_VAR.'|'.PATTERN_TABLE_VAR.'|'.PATTERN_XL_ID.')\s*=/', $js_line, $a_vars))
+			$assigned_names= array_merge($assigned_names, preg_replace('/\[\'(#'.$ID_TABLE.')?\s*([a-zA-Z_]\w*)\'\]/', '$2', $a_vars[1]));
 	}
 
 	$declared_names= array_unique($declared_names);
@@ -491,38 +526,42 @@ $print_javascript= function () use (&$replace_jquery_var, &$ARRAY_CODE_LINES, &$
 	print '<script>' . "\n";
 	foreach ($declared_names as $name) 
 	{
-		list($replaced, $selector, $var)= $replace_jquery_var($name);
+		if (preg_match('/^'.PATTERN_SIMPLE_VAR.'|'.PATTERN_TABLE_VAR.'|('.PATTERN_XL_ID.')$/', $name, $a_name)) 
+		{
+			list(, $simple_var, $table_name, $table_var, $xl_id)= $a_name;
+			list($css_id_var, $var)= $qualified_var($ID_TABLE, $simple_var, $table_name, $table_var);
 
-		if ($replaced)
-			print 'var '. $var .'= ('. $var.'_td= $("'. $selector .'")) ? '. $var.'_td.innerHTML : undefined; '. $var.'_td= undefined;' ."\n";
-		else 
-			print 'var '. $name .'= ('. $name.'_td= $("'. $ID_TABLE .'-'. $name .'")) ? '. $name.'_td.innerHTML : undefined; '. $name.'_td= undefined;' ."\n";
+			if (!empty($xl_id))
+				print 'var '. $xl_id .'= ('. $_($xl_id).'= $("'. $ID_TABLE .'-'. $xl_id .'")) ? '. $_($xl_id) .'.innerHTML : undefined; '. $_($xl_id) .'= undefined;' ."\n";
+			else
+				print 'var '. $var .'= (typeof('. $_($css_id_var) .') !== \'undefined\') ? '. $_($css_id_var) .'.innerHTML : undefined;' ."\n";
+		}
 	}
 
 	// output each line of code; replace fxns/vars and check allowed characters
 	//
 	foreach ($ARRAY_CODE_LINES as $lnr => $js_line) 
 	{
-		if (!preg_match('/^#(?:js!)?\s*(.*)$/', $js_line, $a_jscode))
-			break;
+		//$js= preg_replace('/^#js!\s*/', '', $js_line);
+		if (preg_match('/^#js!\s*([^\/]*)/', $js_line, $a_code))
+			list(, $js)= $a_code;
 
-		$js= $a_jscode[1];
-
-		if (preg_match('/^\s*\/\//', $js, $a_jscode))
-			continue;
-
-		if (preg_match_all('/'.PATTERN_JQUERY_VAR.'/', $js, $a_vars)) 
-			foreach ($a_vars[0] as $name)
+		if (preg_match_all('/'.PATTERN_SIMPLE_VAR.'|'.PATTERN_TABLE_VAR.'/', $js, $a_name)) 
+		{
+			foreach ($a_name[0] as $idx => $name)
 			{
-				list(,, $var)= $replace_jquery_var($name);
-				$js= str_replace($name, $var, $js);
+				list($simple_var, $table_name, $table_var)= array($a_name[1][$idx], $a_name[2][$idx], $a_name[3][$idx]);
+				list($css_id_var, $var)= $qualified_var($ID_TABLE, $simple_var, $table_name, $table_var);
+
+				$js= str_replace( $name, $var, $js);
 			}
+		}
 
 		// Escape the Math.fxn() calls, if the line qualifies, then print the unescaped $js_line
 		//
 		$js_esc_math= preg_replace('/(Math\.|Number|toFixed)([^\(]*)\(([^\)]*)\)/U', '\1\2"\3"', $js);
 		if (preg_match('/^[\$\w=\s\/;+\'"*!|&^%\.-]*$/', $js_esc_math, $a_js)) {
-			print $js."\n";
+			print $js ."\n";
 			continue;
 		}
 		
@@ -535,23 +574,31 @@ $print_javascript= function () use (&$replace_jquery_var, &$ARRAY_CODE_LINES, &$
 	//
 	foreach ($assigned_names as $name) 
 	{
-		$var= $name;
-		$css_id_var= '$("'. $ID_TABLE .'-'. $name .'")';
-
-		list($replaced, $selector, $var_name)= $replace_jquery_var($name);
-		if ($replaced)
+		if (preg_match('/^'.PATTERN_SIMPLE_VAR.'|'.PATTERN_TABLE_VAR.'|('.PATTERN_XL_ID.')$/', $name, $a_name)) 
 		{
-			$var= $var_name;
-			$css_id_var= '$("'. $selector .'")';
-		}
+			list(, $simple_var, $table_name, $table_var, $xl_id)= $a_name;
+			list($css_id_var, $var)= $qualified_var($ID_TABLE, $simple_var, $table_name, $table_var);
 
-		print 'if ('. $var.'_td= '. $css_id_var. ') { '. 
-			$var .'_td.innerHTML= '. $var .'; '.
-			'if ( !isNaN(Number('. $name.'_td.innerHTML)) ) '.
-				'if (Number('. $name.'_td.innerHTML) < 0) '. $name.'_td.classList.add("negative"); '.
-				'else '. $name.'_td.classList.remove("negative") '.
-		'} '. $var.'_td= undefined;' . "\n";
-				
+			if (!empty($xl_id))
+			{
+				$var= $xl_id;
+				print 'if ('. $_($var) .'= $("'. $ID_TABLE .'-'. $var .'")) { '. 
+					'if (typeof('. $var.')==\'number\') '.
+						'if ('. $var.'<0) '. $_($var) .'.classList.add("negative"); '.
+						'else '. $_($var) .'.classList.remove("negative"); '.
+					$_($var) .'.innerHTML= '. $var .'; '.
+				'} '. $_($var) .'= undefined;' ."\n";
+			}
+			else
+			{
+				print 'if (typeof('. $_($css_id_var) .') !== \'undefined\') { '. 
+					'if (typeof('. $var.')==\'number\') '.
+						'if ('. $var.'<0) '. $_($css_id_var) .'.classList.add("negative"); '.
+						'else '. $_($css_id_var) .'.classList.remove("negative"); '.
+					$_($css_id_var) .'.innerHTML= '. $var .'; '.
+				'}' ."\n";
+			}
+		}
 	}
 
 	// clean-up; undeclare all declared variables 
@@ -559,12 +606,16 @@ $print_javascript= function () use (&$replace_jquery_var, &$ARRAY_CODE_LINES, &$
 	$output= '';
 	foreach ($declared_names as $name) 
 	{
-		list($replaced, $selector, $var)= $replace_jquery_var($name);
+		if (preg_match('/^'.PATTERN_SIMPLE_VAR.'|'.PATTERN_TABLE_VAR.'|('.PATTERN_XL_ID.')$/', $name, $a_name)) 
+		{
+			list(, $simple_var, $table_name, $table_var, $xl_id)= $a_name;
+			list($css_id_var, $var)= $qualified_var($ID_TABLE, $simple_var, $table_name, $table_var);
 
-		if ($replaced)
-			$output.= $var .'= ';
-		else
-			$output.= $name .'= ';
+			if (!empty($xl_id))
+				$output.= $xl_id .'= ';
+			else
+				$output.= $var .'= ';
+		}
 	}
 	if (!empty($output)) print $output ."undefined;\n";
 
