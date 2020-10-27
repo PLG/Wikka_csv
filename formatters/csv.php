@@ -12,6 +12,7 @@
 // https://www.phpliveregex.com
 // https://www.php.net/manual/en/function.preg-quote.php
 // https://www.regular-expressions.info/quickstart.html
+// https://www.regular-expressions.info/recurse.html
 
 if (!defined('PATTERN_ARGUMENT'))			define('PATTERN_ARGUMENT', '(?:;([^;\)\x01-\x1f\*\?"<>\|]*))?');
 if (!defined('PATTERN_SPILL_GROUP'))		define('PATTERN_SPILL_GROUP', '([^\)]*)');
@@ -22,8 +23,8 @@ if (!defined('PATTERN_CSS_IDENTIFIER'))		define('PATTERN_CSS_IDENTIFIER', '-?[_a
 if (!defined('PATTERN_CSS_DECLARATION'))	define('PATTERN_CSS_DECLARATION', '(?:a|table|t[hrd])?(?:[:\.#]'.PATTERN_CSS_IDENTIFIER.')*');
 if (!defined('PATTERN_CSS_RULE'))			define('PATTERN_CSS_RULE', '('.PATTERN_CSS_DECLARATION.'(?:,\s*'.PATTERN_CSS_DECLARATION.')*)\s*(\{.*\})');
 if (!defined('PATTERN_IDENTIFIER'))			define('PATTERN_IDENTIFIER', '[a-zA-Z_]\w*');
-if (!defined('PATTERN_XL_ID'))				define('PATTERN_XL_ID', '\$([A-Z]+[\d]+)');
-if (!defined('PATTERN_SIMPLE_VAR'))			define('PATTERN_SIMPLE_VAR', '\$(\b'.PATTERN_IDENTIFIER.'\b)(?!\'\])(?!\s*\.)'); // word boundaries, not ending with '] or .
+if (!defined('PATTERN_XL_ID'))				define('PATTERN_XL_ID', '(?<!\[)\\$([A-Z]+[\d]+)');
+if (!defined('PATTERN_SIMPLE_VAR'))			define('PATTERN_SIMPLE_VAR', '(?<!\[)\$(\b'.PATTERN_IDENTIFIER.'\b)(?!\'\])(?!\s*\.)'); // word boundaries, not ending with '] or .
 if (!defined('PATTERN_TABLE_VAR'))			define('PATTERN_TABLE_VAR', '\$\[\'(?:(?:#('.PATTERN_CSS_IDENTIFIER.')\s*)?('.PATTERN_IDENTIFIER.')|(?R))*\'\]'); // recursive
 
 if (!defined('CSS_ID_DELIM'))				define('CSS_ID_DELIM', '-');
@@ -345,7 +346,7 @@ foreach ($ARRAY_CODE_LINES as $csv_row => $csv_line)
 
 		$cell= preg_replace('/'.PATTERN_NO_ESC.'\$ID/', $xl_id, $cell);
 
-		// READ into variable
+		// READ into variable [$decl_var=value]
 		//
 		if (preg_match('/^\[(?:\$('.PATTERN_IDENTIFIER.'))?=(.*)?\]$/', $cell, $a_read_var))
 		{
@@ -388,12 +389,11 @@ foreach ($ARRAY_CODE_LINES as $csv_row => $csv_line)
 			//
 			if (!empty( $decl_var ))
 				$tag_script.= 'var '. $_($escaped_css_id_var($ID_TABLE, $decl_var)) .'= $("'. $attr[ID] .'"); '. "\n";
-			}
+		}
 
-		// Write out variable
+		// WRITE out variable $var0 $['var0'] or $['#table var0']
 		//
-		// https://www.regular-expressions.info/recurse.html
-		elseif (preg_match('/^(-)?\s*(?:'.PATTERN_SIMPLE_VAR.'|'.PATTERN_TABLE_VAR.')$/', $cell, $a_write_var))
+		if (preg_match('/^(-)?\s*(?:'.PATTERN_SIMPLE_VAR.'|'.PATTERN_TABLE_VAR.')$/', $cell, $a_write_var))
 		{
 			list(, $neg, $simple_var, $table_name, $table_var)= $a_write_var;
 			list($css_id_var, $var)= $qualified_var($ID_TABLE, $simple_var, $table_name, $table_var);
