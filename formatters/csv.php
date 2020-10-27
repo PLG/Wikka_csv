@@ -21,9 +21,9 @@ if (!defined('PATTERN_CURRENCY_FORMAT'))	define('PATTERN_CURRENCY_FORMAT', '\'((
 if (!defined('PATTERN_CSS_IDENTIFIER'))		define('PATTERN_CSS_IDENTIFIER', '-?[_a-zA-Z]+[_a-zA-Z0-9-]*');
 if (!defined('PATTERN_CSS_DECLARATION'))	define('PATTERN_CSS_DECLARATION', '(?:a|table|t[hrd])?(?:[:\.#]'.PATTERN_CSS_IDENTIFIER.')*');
 if (!defined('PATTERN_CSS_RULE'))			define('PATTERN_CSS_RULE', '('.PATTERN_CSS_DECLARATION.'(?:,\s*'.PATTERN_CSS_DECLARATION.')*)\s*(\{.*\})');
-if (!defined('PATTERN_VAR'))				define('PATTERN_VAR', '[a-zA-Z_]\w*');
-if (!defined('PATTERN_SIMPLE_VAR'))			define('PATTERN_SIMPLE_VAR', '\$(\b'.PATTERN_VAR.'\b)(?!\'\])(?!\s*\.)'); // word boundaries, not ending with '] or .
-if (!defined('PATTERN_TABLE_VAR'))			define('PATTERN_TABLE_VAR', '\$\[\'(?:(?:#('.PATTERN_CSS_IDENTIFIER.')\s*)?('.PATTERN_VAR.')|(?R))*\'\]'); // recursive
+if (!defined('PATTERN_IDENTIFIER'))			define('PATTERN_IDENTIFIER', '[a-zA-Z_]\w*');
+if (!defined('PATTERN_SIMPLE_VAR'))			define('PATTERN_SIMPLE_VAR', '\$(\b'.PATTERN_IDENTIFIER.'\b)(?!\'\])(?!\s*\.)'); // word boundaries, not ending with '] or .
+if (!defined('PATTERN_TABLE_VAR'))			define('PATTERN_TABLE_VAR', '\$\[\'(?:(?:#('.PATTERN_CSS_IDENTIFIER.')\s*)?('.PATTERN_IDENTIFIER.')|(?R))*\'\]'); // recursive
 if (!defined('PATTERN_XL_ID'))				define('PATTERN_XL_ID', '[A-Z]+[\d]+');
 
 if (!defined('CSS_ID_DELIM'))				define('CSS_ID_DELIM', '-');
@@ -347,7 +347,7 @@ foreach ($ARRAY_CODE_LINES as $csv_row => $csv_line)
 
 		// READ into variable
 		//
-		if (preg_match('/^\[(?:\$('.PATTERN_VAR.'))?=(.*)?\]$/', $cell, $a_read_var))
+		if (preg_match('/^\[(?:\$('.PATTERN_IDENTIFIER.'))?=(.*)?\]$/', $cell, $a_read_var))
 		{
 			list(, $decl_var, $decl_value)= $a_read_var;
 
