@@ -22,9 +22,9 @@ if (!defined('PATTERN_CSS_IDENTIFIER'))		define('PATTERN_CSS_IDENTIFIER', '-?[_a
 if (!defined('PATTERN_CSS_DECLARATION'))	define('PATTERN_CSS_DECLARATION', '(?:a|table|t[hrd])?(?:[:\.#]'.PATTERN_CSS_IDENTIFIER.')*');
 if (!defined('PATTERN_CSS_RULE'))			define('PATTERN_CSS_RULE', '('.PATTERN_CSS_DECLARATION.'(?:,\s*'.PATTERN_CSS_DECLARATION.')*)\s*(\{.*\})');
 if (!defined('PATTERN_IDENTIFIER'))			define('PATTERN_IDENTIFIER', '[a-zA-Z_]\w*');
+if (!defined('PATTERN_XL_ID'))				define('PATTERN_XL_ID', '\$([A-Z]+[\d]+)');
 if (!defined('PATTERN_SIMPLE_VAR'))			define('PATTERN_SIMPLE_VAR', '\$(\b'.PATTERN_IDENTIFIER.'\b)(?!\'\])(?!\s*\.)'); // word boundaries, not ending with '] or .
 if (!defined('PATTERN_TABLE_VAR'))			define('PATTERN_TABLE_VAR', '\$\[\'(?:(?:#('.PATTERN_CSS_IDENTIFIER.')\s*)?('.PATTERN_IDENTIFIER.')|(?R))*\'\]'); // recursive
-if (!defined('PATTERN_XL_ID'))				define('PATTERN_XL_ID', '[A-Z]+[\d]+');
 
 if (!defined('CSS_ID_DELIM'))				define('CSS_ID_DELIM', '-');
 if (!defined('ID'))							define('ID', 'id');
@@ -388,7 +388,7 @@ foreach ($ARRAY_CODE_LINES as $csv_row => $csv_line)
 			//
 			if (!empty( $decl_var ))
 				$tag_script.= 'var '. $_($escaped_css_id_var($ID_TABLE, $decl_var)) .'= $("'. $attr[ID] .'"); '. "\n";
-		}
+			}
 
 		// Write out variable
 		//
@@ -485,7 +485,7 @@ $print_javascript= function () use (&$_, &$escaped_css_id_var, &$qualified_var, 
 			$ARRAY_CODE_LINES[$lnr]= $js_line;
 		else
 			unset($ARRAY_CODE_LINES[$lnr]);
-		}
+	}
 
 	$declared_names= array();
 	$assigned_names= array();
@@ -493,9 +493,9 @@ $print_javascript= function () use (&$_, &$escaped_css_id_var, &$qualified_var, 
 	{
 		// preg_replace here, removes duplicates of the same declaration: $var2 and $['var2'] and $['#var-text var2']
 		//
-		if (preg_match_all('/'.PATTERN_SIMPLE_VAR.'|'.PATTERN_TABLE_VAR.'|'.PATTERN_XL_ID.'/', $js_line, $a_vars)) 
+		if (preg_match_all('/'.PATTERN_XL_ID.'|'.PATTERN_SIMPLE_VAR.'|'.PATTERN_TABLE_VAR.'/', $js_line, $a_vars)) 
 			$declared_names= array_merge($declared_names, preg_replace('/\[\'(#'.$ID_TABLE.')?\s*([a-zA-Z_]\w*)\'\]/', '$2', $a_vars[0]));
-		if (preg_match_all('/('.PATTERN_SIMPLE_VAR.'|'.PATTERN_TABLE_VAR.'|'.PATTERN_XL_ID.')\s*=/', $js_line, $a_vars))
+		if (preg_match_all('/('.PATTERN_XL_ID.'|'.PATTERN_SIMPLE_VAR.'|'.PATTERN_TABLE_VAR.')\s*=/', $js_line, $a_vars))
 			$assigned_names= array_merge($assigned_names, preg_replace('/\[\'(#'.$ID_TABLE.')?\s*([a-zA-Z_]\w*)\'\]/', '$2', $a_vars[1]));
 	}
 
@@ -513,9 +513,9 @@ $print_javascript= function () use (&$_, &$escaped_css_id_var, &$qualified_var, 
 	print '<script>' . "\n";
 	foreach ($declared_names as $name) 
 	{
-		if (preg_match('/^'.PATTERN_SIMPLE_VAR.'|'.PATTERN_TABLE_VAR.'|('.PATTERN_XL_ID.')$/', $name, $a_name)) 
+		if (preg_match('/^'.PATTERN_XL_ID.'|'.PATTERN_SIMPLE_VAR.'|'.PATTERN_TABLE_VAR.'$/', $name, $a_name)) 
 		{
-			list(, $simple_var, $table_name, $table_var, $xl_id)= $a_name;
+			list(, $xl_id, $simple_var, $table_name, $table_var)= $a_name;
 			list($css_id_var, $var)= $qualified_var($ID_TABLE, $simple_var, $table_name, $table_var);
 
 			if (!empty($xl_id))
@@ -555,13 +555,13 @@ $print_javascript= function () use (&$_, &$escaped_css_id_var, &$qualified_var, 
 		return;
 	}
 
-	// push results back into html foreach variable assigned in js (with an = sign)
+	// push results back into html foreach assigned variable in js (with an = sign)
 	//
 	foreach ($assigned_names as $name) 
 	{
-		if (preg_match('/^'.PATTERN_SIMPLE_VAR.'|'.PATTERN_TABLE_VAR.'|('.PATTERN_XL_ID.')$/', $name, $a_name)) 
+		if (preg_match('/^'.PATTERN_XL_ID.'|'.PATTERN_SIMPLE_VAR.'|'.PATTERN_TABLE_VAR.'$/', $name, $a_name)) 
 		{
-			list(, $simple_var, $table_name, $table_var, $xl_id)= $a_name;
+			list(, $xl_id, $simple_var, $table_name, $table_var)= $a_name;
 			list($css_id_var, $var)= $qualified_var($ID_TABLE, $simple_var, $table_name, $table_var);
 
 			if (!empty($xl_id))
@@ -591,9 +591,9 @@ $print_javascript= function () use (&$_, &$escaped_css_id_var, &$qualified_var, 
 	$output= '';
 	foreach ($declared_names as $name) 
 	{
-		if (preg_match('/^'.PATTERN_SIMPLE_VAR.'|'.PATTERN_TABLE_VAR.'|('.PATTERN_XL_ID.')$/', $name, $a_name)) 
+		if (preg_match('/^'.PATTERN_XL_ID.'|'.PATTERN_SIMPLE_VAR.'|'.PATTERN_TABLE_VAR.'$/', $name, $a_name)) 
 		{
-			list(, $simple_var, $table_name, $table_var, $xl_id)= $a_name;
+			list(, $xl_id, $simple_var, $table_name, $table_var)= $a_name;
 			list($css_id_var, $var)= $qualified_var($ID_TABLE, $simple_var, $table_name, $table_var);
 
 			if (!empty($xl_id))
