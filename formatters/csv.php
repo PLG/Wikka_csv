@@ -185,23 +185,6 @@ $qualified_var= function($ID_TABLE, $simple_var, $table_name, $table_var) use (&
 	return array($escaped_css_id_var($ID_TABLE, 'ERR'), 'ERR');
 };
 
-/*
-$replace_jquery_var= function ($name) use (&$escaped_css_id_var)
-{
-	if (preg_match('/'.PATTERN_JQUERY_VAR.'/', $name, $a_name))
-	{
-		list($css_id, $var)= $a_name;
-
-		$css_id_var= $escaped_css_id_var($css_id, $var);
-		$selector= $css_id . CSS_ID_DELIM . $var;
-
-		return array(true, $selector, $css_id_var);
-	}
-
-	return array(false, '', $name);
-};
-*/
-
 // https://stackoverflow.com/questions/3302857/algorithm-to-get-the-excel-like-column-name-of-a-number
 $spreadsheet_baseZ= function ($n) {
     for($r = ""; $n >= 0; $n = intval($n / 26) - 1)
@@ -488,22 +471,26 @@ print "</table>\n";
 
 $print_javascript= function () use (&$_, &$escaped_css_id_var, &$qualified_var, &$ARRAY_CODE_LINES, &$ID_TABLE)
 {
-	$declared_names= array();
-	$assigned_names= array();
 	foreach ($ARRAY_CODE_LINES as $lnr => $js_line) 
 	{
-		if (!preg_match('/^#(?:js!)?/', $js_line))
+		if (preg_match('/^#js!\s*([^\/]*)/', $js_line, $a_code))
+			list(, $js_line)= $a_code;
+		else
 		{
 			print 'ERROR: line '. $lnr .': \''. $js_line .'\'' ."\n";
 			return;
 		}
 
-		if (!preg_match('/^#js!(?!\s*\/\/|\s*$)/', $js_line))
-		{
+		if (preg_match('/^(?!\s*\/\/|\s*$)/', $js_line))
+			$ARRAY_CODE_LINES[$lnr]= $js_line;
+		else
 			unset($ARRAY_CODE_LINES[$lnr]);
-			continue;
 		}
 
+	$declared_names= array();
+	$assigned_names= array();
+	foreach ($ARRAY_CODE_LINES as $lnr => $js_line) 
+	{
 		// preg_replace here, removes duplicates of the same declaration: $var2 and $['var2'] and $['#var-text var2']
 		//
 		if (preg_match_all('/'.PATTERN_SIMPLE_VAR.'|'.PATTERN_TABLE_VAR.'|'.PATTERN_XL_ID.'/', $js_line, $a_vars)) 
@@ -542,9 +529,7 @@ $print_javascript= function () use (&$_, &$escaped_css_id_var, &$qualified_var, 
 	//
 	foreach ($ARRAY_CODE_LINES as $lnr => $js_line) 
 	{
-		//$js= preg_replace('/^#js!\s*/', '', $js_line);
-		if (preg_match('/^#js!\s*([^\/]*)/', $js_line, $a_code))
-			list(, $js)= $a_code;
+		$js= $js_line;
 
 		if (preg_match_all('/'.PATTERN_SIMPLE_VAR.'|'.PATTERN_TABLE_VAR.'/', $js, $a_name)) 
 		{
