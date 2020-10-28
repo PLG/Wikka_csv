@@ -400,7 +400,9 @@ foreach ($ARRAY_CODE_LINES as $csv_row => $csv_line)
 
 			$cell= 'ERROR!';
 
-			$tag_script.= 'if (typeof('. $_($css_id_var) .') !== \'undefined\') $("'. $attr[ID] .'").innerHTML= '. $neg . $_($css_id_var) .'.innerHTML; '. "\n";
+			// adding a dash for the negative causes javascript to convert the innerHTML string to a number, resulting in the toFixed(2) being removed. String addition instead.
+			//
+			$tag_script.= 'if (typeof('. $_($css_id_var) .') !== \'undefined\') $("'. $attr[ID] .'").innerHTML= \''. $neg .'\'+ '. $_($css_id_var) .'.innerHTML; '. "\n";
 			$tag_script.= 'if ( !isNaN(Number($("'. $attr[ID] .'").innerHTML)) ) '
 				.'if (Number($("'. $attr[ID] .'").innerHTML) < 0) $("'. $attr[ID] .'").classList.add("negative"); else $("'. $attr[ID] .'").classList.remove("negative");'. "\n";
 			
