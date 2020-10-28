@@ -568,7 +568,7 @@ $print_javascript= function () use (&$_, &$escaped_css_id_var, &$qualified_var, 
 			{
 				$var= $xl_id;
 				print 'if ('. $_($var) .'= $("'. $ID_TABLE .'-'. $var .'")) { '. 
-					'if (typeof('. $var.')==\'number\') '.
+					'if (typeof(Number('. $var.'))==\'number\') '.
 						'if ('. $var.'<0) '. $_($var) .'.classList.add("negative"); '.
 						'else '. $_($var) .'.classList.remove("negative"); '.
 					$_($var) .'.innerHTML= '. $var .'; '.
@@ -577,7 +577,7 @@ $print_javascript= function () use (&$_, &$escaped_css_id_var, &$qualified_var, 
 			else
 			{
 				print 'if (typeof('. $_($css_id_var) .') !== \'undefined\') { '. 
-					'if (typeof('. $var.')==\'number\') '.
+					'if (typeof(Number('. $var.'))==\'number\') '.
 						'if ('. $var.'<0) '. $_($css_id_var) .'.classList.add("negative"); '.
 						'else '. $_($css_id_var) .'.classList.remove("negative"); '.
 					$_($css_id_var) .'.innerHTML= '. $var .'; '.
