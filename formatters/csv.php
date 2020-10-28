@@ -152,7 +152,7 @@ $replace_camel_url_links= function ($cell)
 		list($found, $links, $names)= $a_links;
 		foreach ($found as $idx => $found1)
 		{
-			if ( empty($names[$idx]) )
+			if ( !strlen($names[$idx]) )
 				$cell= preg_replace('/'.preg_quote($found[$idx],'/').'/', $this->Link($links[$idx]), $cell);
 
 			else
@@ -172,12 +172,12 @@ $escaped_css_id_var= function ($css_id, $var) {
 
 $qualified_var= function($ID_TABLE, $simple_var, $table_name, $table_var) use (&$escaped_css_id_var)
 {
-	if (!empty($simple_var))
+	if (strlen($simple_var))
 		return array($escaped_css_id_var($ID_TABLE, $simple_var), $simple_var);
 
-	elseif (!empty($table_var))
+	elseif (strlen($table_var))
 	{
-		if (!empty($table_name))
+		if (strlen($table_name))
 			return array($css_id_var= $escaped_css_id_var($table_name, $table_var), $escaped_css_id_var($table_name, $table_var));
 		else
 			return array($escaped_css_id_var($ID_TABLE, $table_var), $table_var);
@@ -290,7 +290,7 @@ foreach ($ARRAY_CODE_LINES as $csv_row => $csv_line)
 		{
 			list(, $quotes, $cell)= $a_matches;
 
-			if (empty($cell))
+			if (!strlen($cell))
 				$cell= '&nbsp;';
 
 			if ($quotes == '"')
@@ -375,7 +375,7 @@ foreach ($ARRAY_CODE_LINES as $csv_row => $csv_line)
 			//
 			else 
 			{
-				if (empty($decl_value))
+				if (!strlen($decl_value))
 					$decl_value= '&nbsp;';
 
 				$cell= $decl_value;
@@ -387,7 +387,7 @@ foreach ($ARRAY_CODE_LINES as $csv_row => $csv_line)
 
 			// variable assignment [$decl_var=...]
 			//
-			if (!empty( $decl_var ))
+			if (strlen( $decl_var ))
 				$tag_script.= 'var '. $_($escaped_css_id_var($ID_TABLE, $decl_var)) .'= $("'. $attr[ID] .'"); '. "\n";
 		}
 
@@ -455,9 +455,9 @@ foreach ($ARRAY_CODE_LINES as $csv_row => $csv_line)
 		list(, $cell)= $replace_camel_url_links($cell);
 
 		print $TD_ws; 
-		print ((empty($tag_style)) ? '' : '<style>'. $tag_style .'</style>');
+		print ((!strlen($tag_style)) ? '' : '<style>'. $tag_style .'</style>');
 		print '<'. $tag .' id="'. $attr[ID] .'" class="'. $attr[CLASSES] .'" title="'. $attr[TITLE] .'" style="'. $attr[STYLE] .'" >'. $cell .'</'. $tag .'>';
-		print ((empty($tag_script)) ? '' : "\n". '<script>'. $tag_script .'</script>');
+		print ((!strlen($tag_script)) ? '' : "\n". '<script>'. $tag_script .'</script>');
 
 	}
 	print "</tr>\n";
@@ -520,7 +520,7 @@ $print_javascript= function () use (&$_, &$escaped_css_id_var, &$qualified_var, 
 			list(, $xl_id, $simple_var, $table_name, $table_var)= $a_name;
 			list($css_id_var, $var)= $qualified_var($ID_TABLE, $simple_var, $table_name, $table_var);
 
-			if (!empty($xl_id))
+			if (strlen($xl_id))
 				print 'var '. $xl_id .'= ('. $_($xl_id).'= $("'. $ID_TABLE .'-'. $xl_id .'")) ? '. $_($xl_id) .'.innerHTML : undefined; '. $_($xl_id) .'= undefined;' ."\n";
 			else
 				print 'var '. $var .'= (typeof('. $_($css_id_var) .') !== \'undefined\') ? '. $_($css_id_var) .'.innerHTML : undefined;' ."\n";
@@ -566,7 +566,7 @@ $print_javascript= function () use (&$_, &$escaped_css_id_var, &$qualified_var, 
 			list(, $xl_id, $simple_var, $table_name, $table_var)= $a_name;
 			list($css_id_var, $var)= $qualified_var($ID_TABLE, $simple_var, $table_name, $table_var);
 
-			if (!empty($xl_id))
+			if (strlen($xl_id))
 			{
 				$var= $xl_id;
 				print 'if ('. $_($var) .'= $("'. $ID_TABLE .'-'. $var .'")) { '. 
@@ -598,13 +598,13 @@ $print_javascript= function () use (&$_, &$escaped_css_id_var, &$qualified_var, 
 			list(, $xl_id, $simple_var, $table_name, $table_var)= $a_name;
 			list($css_id_var, $var)= $qualified_var($ID_TABLE, $simple_var, $table_name, $table_var);
 
-			if (!empty($xl_id))
+			if (strlen($xl_id))
 				$output.= $xl_id .'= ';
 			else
 				$output.= $var .'= ';
 		}
 	}
-	if (!empty($output)) print $output ."undefined;\n";
+	if (strlen($output)) print $output ."undefined;\n";
 
 	print '</script>' ."\n";
 };
