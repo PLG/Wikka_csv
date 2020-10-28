@@ -473,7 +473,7 @@ $print_javascript= function () use (&$_, &$escaped_css_id_var, &$qualified_var, 
 {
 	foreach ($ARRAY_CODE_LINES as $lnr => $js_line) 
 	{
-		if (preg_match('/^#js!\s*([^\/]*)/', $js_line, $a_code))
+		if (preg_match('/^#js!\s*(.*?)(?:\s*\/\/|$)/', $js_line, $a_code))
 			list(, $js_line)= $a_code;
 		else
 		{
