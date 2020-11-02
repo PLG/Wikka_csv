@@ -261,8 +261,8 @@ print "</style>\n";
 
 //---------------------------------------------------------------------------------------------------------------------
 
-//$TD_ws= "\n\t"; 
-$TD_ws= ''; 
+$TD_ws= "\n\t"; 
+//$TD_ws= ''; 
 $js_script= '';
 
 $total= array(array());
@@ -454,38 +454,57 @@ foreach ($ARRAY_CODE_LINES as $csv_row => $csv_line)
 
 		// calculate totals
 		//
-		if ( (isset($total['col'][$col]) || isset($total['row'][$row]) ) && ($cell != '_') )
+		if ( (isset($total['col'][$col]) || isset($total['row'][$row])) && ($cell != '_') )
 		{
+			// if both column and row having formatting, choose which?
+			//
+			if ( isset($total['col'][$col]) && isset($total['row'][$row]) )
+			{
+				list($col_curr_set, )= $total['col'][$col];
+				list($row_curr_set, )= $total['row'][$row];
+
+				if ($col_curr_set && $row_curr_set)
+					$total_rowcol= $total['col'][$col]; // prioritize column over row formatting
+				else
+					$total_rowcol= ($col_curr_set) ? $total['col'][$col] : $total['row'][$row];
+			}
+			else
+				$total_rowcol= (isset($total['col'][$col])) ? $total['col'][$col] : $total['row'][$row];
+
+
 			foreach ($a_dimensions as $rowcol => list(, $idx) )
 				if ( isset($total[$rowcol][$idx]) )
 				{
-					list($rowcol_curr_set, $rowcol_currency)= $total[$rowcol][$idx];
+					list($rowcol_curr_set, $rowcol_currency)= $total_rowcol;
 
 					$attr[CLASSES].= ' accu';
 
 					if ($replaced)
 					{
 						//TODO if USD is appended to the end of a cell you will get '234.34 USD' when reading out a variable. Users will need string parsing tools.
+						
+						$nr= ' $("'. $attr[ID] .'").innerHTML ';
 
-						$tag_script.= 't'.$rowcol.'['.$idx.']+= Number( $("'. $attr[ID] .'").innerHTML ); '.
+						$tag_script.= 't'.$rowcol.'['.$idx.']+= Number('. $nr .'); '.
 							'if (isNaN(t'.$rowcol.'['.$idx.'])) t'.$rowcol.'['.$idx.']= undefined; '. "\n";
 
+						//TODO assigning of innerHTML doesn't have to happen twice
 						if ($rowcol_curr_set)
-							$tag_script.= ' $("'. $attr[ID] .'").innerHTML= '. $js_toFixed(' $("'. $attr[ID] .'").innerHTML ', array($rowcol_currency,CURRENCY_DISPLAY)) . "\n";
+							$tag_script.= ' $("'. $attr[ID] .'").innerHTML= '. $js_toFixed($nr, array($rowcol_currency,CURRENCY_DISPLAY)) . "\n";
 					}
 
 					elseif ($tag != 'th')
 					{
 						$searchable_formats= ($rowcol_curr_set) ? array($rowcol_currency) : $selected_formats;
 						list($success, $nr, $nr_currency, $nr_curr_set)= $parse_number($searchable_formats, $cell); 
-						
+
 						$attr[TITLE].= ' \''. $cell .'\' '. $nr_currency . ($nr_curr_set ? '(!)' : '') .'';
 
-						//$cell= 'ERROR!';
 
 						if (!$success) // || ($rowcol_curr_set && ($nr_currency != $rowcol_currency)) ) 
 						{
 							$tag_script.= 't'.$rowcol.'['.$idx.']= undefined; '. "\n";
+							$cell= 'ERROR!';
 						}
 						else
 						{
@@ -495,6 +514,7 @@ foreach ($ARRAY_CODE_LINES as $csv_row => $csv_line)
 							//$a_options= ($nr_curr_set || $rowcol_curr_set) ? array($nr_currency,CURRENCY_DISPLAY) : array($selected_formats[0],'');
 							$a_options= ($rowcol_curr_set) ? array($searchable_formats[0],CURRENCY_DISPLAY) : array($searchable_formats[0],'');
 
+							//TODO assigning of innerHTML doesn't have to happen twice
 							$tag_script.= '$("'. $attr[ID] .'").innerHTML= '. $js_toFixed($nr, $a_options) .'; '.
 								'if (t'.$rowcol.'['.$idx.'] !== undefined) t'.$rowcol.'['.$idx.']+= Number('. $nr .'); '. "\n";
 						}
