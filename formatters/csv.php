@@ -226,6 +226,9 @@ $css['tr.even']= '{ background-color:#ffe; }';
 $css['tr.odd']= '{ background-color:#eee; }';
 //$css['.negative']= '{ background-color:#f00; }';
 $css['.negative']= '{ background-color:#fcc; border: 2px solid red; border-collapse: collapse; }';
+// if you want to make negative headers different from negative cells
+//$css['td.negative']= '{ background-color:#fcc; border: 2px solid red; border-collapse: collapse; }';
+//$css['th.negative']= '{ background-color:red; border: 2px solid black; border-collapse: collapse; }';
 $css['.total']= '{ border: 1px solid black; border-collapse: collapse; }';
 $css['a:link']= '{ color: blue; }';
 $css['a:visited']= '{ color: blue; }';
