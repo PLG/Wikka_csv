@@ -17,8 +17,10 @@
 if (!defined('PATTERN_ARGUMENT'))			define('PATTERN_ARGUMENT', '(?:;([^;\)\x01-\x1f\*\?"<>\|]*))?');
 if (!defined('PATTERN_SPILL_GROUP'))		define('PATTERN_SPILL_GROUP', '([^\)]*)');
 if (!defined('PATTERN_NO_ESC'))				define('PATTERN_NO_ESC', '(?<!\\\)');
-if (!defined('PATTERN_NUMBER_FORMAT'))		define('PATTERN_NUMBER_FORMAT', '#(?:,##)?([.,\'\s])#{3}(?:([.,\'])(#+|#~))?');
-if (!defined('PATTERN_CURRENCY_FORMAT'))	define('PATTERN_CURRENCY_FORMAT', '\'((?:USD|SEK)(?:,\s*(?:USD|SEK))*)\'');
+if (!defined('PATTERN_FORMATS'))			define('PATTERN_FORMATS', 'US0|US2|EUX|USD|SEK');
+if (!defined('PATTERN_CURRENCY_FORMAT'))	define('PATTERN_CURRENCY_FORMAT', '\'((?:'.PATTERN_FORMATS.')(?:,\s*(?:'.PATTERN_FORMATS.'))*)\'');
+if (!defined('PATTERN_CURRENCIES'))			define('PATTERN_CURRENCIES', 'USD|SEK');
+if (!defined('PATTERN_NUMBER_FORMAT'))		define('PATTERN_NUMBER_FORMAT', '\[#(?:,##)?([.,\'\s])#{3}(?:([.,\'])(#+|#~))?\]('.PATTERN_CURRENCIES.')?');
 if (!defined('PATTERN_CSS_IDENTIFIER'))		define('PATTERN_CSS_IDENTIFIER', '-?[_a-zA-Z]+[_a-zA-Z0-9-]*');
 if (!defined('PATTERN_CSS_DECLARATION'))	define('PATTERN_CSS_DECLARATION', '(?:a|table|t[hrd])?(?:[:\.#]'.PATTERN_CSS_IDENTIFIER.')*');
 if (!defined('PATTERN_CSS_RULE'))			define('PATTERN_CSS_RULE', '('.PATTERN_CSS_DECLARATION.'(?:,\s*'.PATTERN_CSS_DECLARATION.')*)\s*(\{.*\})');
@@ -74,13 +76,22 @@ $comments= 0;
 
 //---------------------------------------------------------------------------------------------------------------------
 
-$number_formats['standard']= '#,###.#~';
-$number_formats['european']= '#.###,#~';
+$number_formats['US0']= '[#,###]';
+$number_formats['US2']= '[#,###.##]';
+$number_formats['USX']= '[#,###.#~]';
+
+$number_formats['EUX']= '[#.###,#~]';
+
+if (!defined('FORMAT_DEFAULT')) define('FORMAT_DEFAULT', 'US2');
 
 // https://www.thefinancials.com/Default.aspx?SubSectionID=curformat
 // [#,###.###]BHD [#,###.##] [#.###,##] [# ###.##]AUD [#,##,###.##]INR [#.###]CLP [#,###]JPY [# ###]LBP
-$number_formats['USD']= '#,###.##';
-$number_formats['SEK']= '#.###,##';
+$number_formats['USD']= '[#,###.##]USD';
+$number_formats['SEK']= '[#.###,##]SEK';
+
+$currency_locale['USD']= 'us-US';
+//$currency_locale['SEK']= 'de-DE'; // produces "#.###,## SEK" with Number().toLocaleString()
+$currency_locale['SEK']= 'sv-SE'; // produces "# ###,## kr" with Number().toLocaleString()
 
 $parse_number_format= function($format) use (&$number_formats)
 {
@@ -89,48 +100,62 @@ $parse_number_format= function($format) use (&$number_formats)
 };
 
 
-$selected_formats= array('standard');
+$selected_formats= array(FORMAT_DEFAULT);
 if (preg_match('/^'.PATTERN_CURRENCY_FORMAT.'$/', $arg3, $a_selected))
 	$selected_formats= explode(',', $a_selected[1]);
+array_walk($selected_formats, function(&$arrValue) { $arrValue = trim($arrValue);} );
 
-//TODO: what format do we output? use the first specified format for now
-$js_toFixed= function($nr) use (&$parse_number_format, &$selected_formats)
+$js_toFixed= function($element, $a_options) use (&$currency_locale, &$parse_number_format)
 {
-	list(, $grouping, $decimal, $places)= $parse_number_format( trim($selected_formats[0]) );
+	list($format, $display_currency)= $a_options;
+	list(, $grouping, $decimal, $places, $currency)= $parse_number_format( $format );
 
 	if (!strcmp($places, '#~'))
-		return $nr;
-	return 'Number('. $nr .').toFixed('.strlen($places).')'; // NOTE: .toFixed(...) returns a string!
+		return $element;
+
+	// this outputs grouping symbols, which makes it really hard to add them up in js e.g., Number("2,123.00") is NaN
+	//$toConversion= '.toLocaleString(undefined, {minimumFractionDigits: '. strlen($places) .', maximumFractionDigits: '. strlen($places) .'})';
+	$toConversion= '.toFixed('.strlen($places).')'; // NOTE: .toFixed(...) returns a string!
+
+	if (!strcmp($display_currency, 'ISO4217') )
+		$toConversion.= ' +\' '. $currency .'\'';
+	elseif (!strcmp($display_currency, 'locale') )
+		// https://stackoverflow.com/questions/9372624/formatting-a-number-as-currency-using-css
+		$toConversion= '.toLocaleString(\''. $currency_locale[$currency] .'\', { style: \'currency\', currency: \''. $currency .'\' })';
+
+	return 'Number('. $element .')'. $toConversion;
 };
+
+if (!defined('CURRENCY_DISPLAY')) define('CURRENCY_DISPLAY', 'ISO4217');
 
 // https://www.php.net/manual/en/functions.anonymous.php
 //if (!function_exists('parse_number')) { } // doesn't see global scope variables, support 'static'
-$parse_number= function ($cell) use (&$parse_number_format, &$selected_formats) 
+$parse_number= function ($searchable_formats, $cell) use (&$parse_number_format) 
 {
-	foreach ($selected_formats as $format)
+	foreach ($searchable_formats as $format)
 	{
-		list(, $grouping, $decimal, $places)= $parse_number_format( trim($format) );
+		list(, $grouping, $decimal, $places)= $parse_number_format($format);
 		
-		if ($grouping == '.') $grouping= '\.';
-		if ($decimal  == '.') $decimal= '\.';
+		$grouping= preg_quote($grouping);
+		$decimal= preg_quote($decimal);
 
 		if (!strcmp($places, '#~'))
 			$pattern_number= '([+-]?)\s*(\d{1,3}(?:'. $grouping .'\d{3})*|(?:\d+))(?:'. $decimal .'(\d+))?';
 		else
 			$pattern_number= '([+-]?)\s*(\d{1,3}(?:'. $grouping .'\d{3})*|(?:\d+))(?:'. $decimal .'(\d{'. strlen($places) .'}))?(?:\s*([A-Z]{3}))?';
 
-		if (preg_match('/^'.$pattern_number.'$/', $cell, $a_currency))
+		if (preg_match('/^'.$pattern_number.'$/', $cell, $a_cell))
 		{
-			list(, $posneg, $whole, $frac, $currency)= $a_currency;
+			list(, $posneg, $whole, $frac, $currency)= $a_cell;
 
-			if (isset($currency) && strcmp($currency, $format))
+			if (strlen($currency) && strcmp($currency, $format))
 				continue;
 
 			$cell= $posneg . preg_replace('/'.$grouping.'/', '', $whole);
-			if ( isset($frac) )
+			if ( strlen($frac) )
 				$cell.= '.'. $frac;
 
-			return array(true, floatval($cell), $format, $currency);
+			return array(true, floatval($cell), $format, (strlen($currency) != 0) );
 		}
 	}
 
@@ -237,6 +262,8 @@ print "</style>\n";
 $TD_ws= ''; 
 $js_script= '';
 
+$total= array(array());
+
 print '<script>function $(x) { return document.getElementById(x); }; var tcol={}; var trow={};</script>'. "\n";
 print '<table id="'. $ID_TABLE .'">'. "\n";
 // https://www.thoughtco.com/and-in-javascript-2037515
@@ -319,17 +346,27 @@ foreach ($ARRAY_CODE_LINES as $csv_row => $csv_line)
 
 			//TODO: undefined all tcol and trow in js at the end of the script
 
-			if (preg_match('/^(.*)\s*'.PATTERN_NO_ESC.'([+#])\2$/', $cell, $a_accum)) {
-				$cell= $a_accum[1];
-				$total['col'][$col]= true;
-				$tag_script.= 'tcol['.$col.']= Number(0); '. "\n";
-			}
-			elseif (preg_match('/^'.PATTERN_NO_ESC.'([+#])\1(.*)\s*$/', $cell, $a_accum)) {
-				$cell= $a_accum[2];
-				$total['row'][$row]= true;
-				$tag_script.= 'trow['.$row.']= Number(0); '. "\n";
-			}
+			$pattern_rowcol_accu['col']= '(.*)\s*'.PATTERN_NO_ESC.'([+])\2('.PATTERN_FORMATS.')?';
+			$pattern_rowcol_accu['row']= '('.PATTERN_FORMATS.')?'.PATTERN_NO_ESC.'([+])\2(.*)\s*';
 
+			foreach ($a_dimensions as $rowcol => list(, $idx) )
+				if (preg_match('/^'. $pattern_rowcol_accu[$rowcol] .'$/', $cell, $a_accum)) 
+				{
+					if (!strcmp($rowcol, 'col'))
+						list(, $cell, $plus, $format)= $a_accum;
+					else
+						list(, $format, $plus, $cell)= $a_accum;
+
+					$total[$rowcol][$idx]= array(false, $selected_formats[0]);
+					if (strlen($format))
+					{
+						$total[$rowcol][$idx]= array(true, $format);
+						if (!in_array($format, $selected_formats))
+							$cell= 'SYNTAX!';
+					}
+					$tag_script.= 't'.$rowcol.'['.$idx.']= Number(0); '. "\n";
+					break;
+				}
 		}
 
 		//-------------------------------------------------------------------------------------------------------------
@@ -361,11 +398,15 @@ foreach ($ARRAY_CODE_LINES as $csv_row => $csv_line)
 				foreach ($a_dimensions as $rowcol => list($marker, $idx) )
 					if ( $decl_value == $marker && isset($total[$rowcol][$idx]) )
 					{
+						list($rowcol_curr_set, $rowcol_currency)= $total[$rowcol][$idx];
+						$a_options= $rowcol_curr_set ? array($rowcol_currency,CURRENCY_DISPLAY) : array($selected_formats[0],'');
+
 						$attr[CLASSES].= ' total';
 						$cell= 'ERROR!';
-
-						$tag_script.= 'if (t'.$rowcol.'['.$idx.'] !== undefined) $("'. $attr[ID] .'").innerHTML= '. $js_toFixed('t'.$rowcol.'['.$idx.']') .'; '. "\n";
 						$replaced= true;
+
+						$tag_script.= 'if (t'.$rowcol.'['.$idx.'] !== undefined) '.
+							'$("'. $attr[ID] .'").innerHTML= '. $js_toFixed('t'.$rowcol.'['.$idx.']', $a_options) .'; '. "\n";
 
 						unset( $total[$rowcol][$idx] );
 					}
@@ -380,7 +421,7 @@ foreach ($ARRAY_CODE_LINES as $csv_row => $csv_line)
 
 				$cell= $decl_value;
 
-				list($success, $nr, $format, $currency)= $parse_number($cell);
+				list($success, $nr, $format, $currency)= $parse_number($selected_formats, $cell);
 				if ($success)
 					$attr[CLASSES].= (($nr < 0) ? ' negative' : '' );
 			}
@@ -401,7 +442,6 @@ foreach ($ARRAY_CODE_LINES as $csv_row => $csv_line)
 			$cell= 'ERROR!';
 
 			// adding a dash for the negative causes javascript to convert the innerHTML string to a number, resulting in the toFixed(2) being removed. String addition instead.
-			//
 			$tag_script.= 'if (typeof('. $_($css_id_var) .') !== \'undefined\') $("'. $attr[ID] .'").innerHTML= \''. $neg .'\'+ '. $_($css_id_var) .'.innerHTML; '. "\n";
 			$tag_script.= 'if ( !isNaN(Number($("'. $attr[ID] .'").innerHTML)) ) '
 				.'if (Number($("'. $attr[ID] .'").innerHTML) < 0) $("'. $attr[ID] .'").classList.add("negative"); else $("'. $attr[ID] .'").classList.remove("negative");'. "\n";
@@ -411,34 +451,50 @@ foreach ($ARRAY_CODE_LINES as $csv_row => $csv_line)
 
 		// calculate totals
 		//
-		if ( isset($total['col'][$col]) || isset($total['row'][$row]) )
+		if ( (isset($total['col'][$col]) || isset($total['row'][$row]) ) && ($cell != '_') )
 		{
-			//TODO if USD is appended to the end of a cell, that means variable replacement should move here, so that the replacement is also parsed for currency
-			// Also, in js, you will get '234.34 USD' when reading out a variable. Users will need string parsing tools then. argh!
-
 			foreach ($a_dimensions as $rowcol => list(, $idx) )
 				if ( isset($total[$rowcol][$idx]) )
 				{
+					list($rowcol_curr_set, $rowcol_currency)= $total[$rowcol][$idx];
+
 					$attr[CLASSES].= ' accu';
 
 					if ($replaced)
-						$tag_script.= 't'.$rowcol.'['.$idx.']+= Number( $("'. $attr[ID] .'").innerHTML ); if (isNaN(t'.$rowcol.'['.$idx.'])) t'.$rowcol.'['.$idx.']= undefined; '. "\n";
-
-					elseif ($cell != '_' && $tag != 'th')
 					{
-						list($success, $nr, $format, $currency)= $parse_number($cell);
-						
-						$attr[TITLE].= ' '. $cell .'('. $format .' '. $currency .')';
+						//TODO if USD is appended to the end of a cell you will get '234.34 USD' when reading out a variable. Users will need string parsing tools.
 
-						if ($success)
+						$tag_script.= 't'.$rowcol.'['.$idx.']+= Number( $("'. $attr[ID] .'").innerHTML ); '.
+							'if (isNaN(t'.$rowcol.'['.$idx.'])) t'.$rowcol.'['.$idx.']= undefined; '. "\n";
+
+						if ($rowcol_curr_set)
+							$tag_script.= ' $("'. $attr[ID] .'").innerHTML= '. $js_toFixed(' $("'. $attr[ID] .'").innerHTML ', array($rowcol_currency,CURRENCY_DISPLAY)) . "\n";
+					}
+
+					elseif ($tag != 'th')
+					{
+						$searchable_formats= ($rowcol_curr_set) ? array($rowcol_currency) : $selected_formats;
+						list($success, $nr, $nr_currency, $nr_curr_set)= $parse_number($searchable_formats, $cell); 
+						
+						$attr[TITLE].= ' \''. $cell .'\' '. $nr_currency . ($nr_curr_set ? '(!)' : '') .'';
+
+						//$cell= 'ERROR!';
+
+						if (!$success) // || ($rowcol_curr_set && ($nr_currency != $rowcol_currency)) ) 
+						{
+							$tag_script.= 't'.$rowcol.'['.$idx.']= undefined; '. "\n";
+						}
+						else
 						{
 							$attr[CLASSES].= (($nr < 0) ? ' negative' : '' );
 
-							$tag_script.= '$("'. $attr[ID] .'").innerHTML= '. $js_toFixed($nr) .'; if (t'.$rowcol.'['.$idx.'] !== undefined) t'.$rowcol.'['.$idx.']+= Number('. $nr .'); '. "\n";
-							//TODO $js_script.= '$("'. $attr[ID] .'").innerHTML= '. $js_toFixed($nr) .''. $currency .'; if (t'.$dim.'['.$idx.'] !== undefined) t'.$dim.'['.$idx.']+= Number('. $nr .'); '. "\n";
+							// if $rowcol_curr_set then $nr_currency==$rowcol_currency
+							//$a_options= ($nr_curr_set || $rowcol_curr_set) ? array($nr_currency,CURRENCY_DISPLAY) : array($selected_formats[0],'');
+							$a_options= ($rowcol_curr_set) ? array($searchable_formats[0],CURRENCY_DISPLAY) : array($searchable_formats[0],'');
+
+							$tag_script.= '$("'. $attr[ID] .'").innerHTML= '. $js_toFixed($nr, $a_options) .'; '.
+								'if (t'.$rowcol.'['.$idx.'] !== undefined) t'.$rowcol.'['.$idx.']+= Number('. $nr .'); '. "\n";
 						}
-						else
-							$tag_script.= 't'.$rowcol.'['.$idx.']= undefined; '. "\n";
 					}
 				}
 
