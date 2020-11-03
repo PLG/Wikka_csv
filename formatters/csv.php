@@ -17,7 +17,7 @@
 if (!defined('PATTERN_ARGUMENT'))			define('PATTERN_ARGUMENT', '(?:;([^;\)\x01-\x1f\*\?"<>\|]*))?');
 if (!defined('PATTERN_SPILL_GROUP'))		define('PATTERN_SPILL_GROUP', '([^\)]*)');
 if (!defined('PATTERN_NO_ESC'))				define('PATTERN_NO_ESC', '(?<!\\\)');
-if (!defined('PATTERN_FORMATS'))			define('PATTERN_FORMATS', 'US0|US2|EUX|USD|SEK');
+if (!defined('PATTERN_FORMATS'))			define('PATTERN_FORMATS', 'US0|US2|USX|EUX|USD|SEK');
 if (!defined('PATTERN_CURRENCY_FORMAT'))	define('PATTERN_CURRENCY_FORMAT', '\'((?:'.PATTERN_FORMATS.')(?:,\s*(?:'.PATTERN_FORMATS.'))*)\'');
 if (!defined('PATTERN_CURRENCIES'))			define('PATTERN_CURRENCIES', 'USD|SEK');
 if (!defined('PATTERN_NUMBER_FORMAT'))		define('PATTERN_NUMBER_FORMAT', '\[#(?:,##)?([.,\'\s])#{3}(?:([.,\'])(#+|#~))?\]('.PATTERN_CURRENCIES.')?');
@@ -454,7 +454,7 @@ foreach ($ARRAY_CODE_LINES as $csv_row => $csv_line)
 
 		// calculate totals
 		//
-		if ( (isset($total['col'][$col]) || isset($total['row'][$row])) && ($cell != '_') )
+		if ( isset($total['col'][$col]) || isset($total['row'][$row]) )
 		{
 			// if both column and row having formatting, choose which?
 			//
@@ -471,56 +471,54 @@ foreach ($ARRAY_CODE_LINES as $csv_row => $csv_line)
 			else
 				$total_rowcol= (isset($total['col'][$col])) ? $total['col'][$col] : $total['row'][$row];
 
+			list($rowcol_curr_set, $rowcol_currency)= $total_rowcol;
+			$searchable_formats= ($rowcol_curr_set) ? array($rowcol_currency) : $selected_formats;
+			$a_options= ($rowcol_curr_set) ? array($searchable_formats[0],CURRENCY_DISPLAY) : array($searchable_formats[0],'');
+
+			$attr[CLASSES].= ' accu';
+	
+			if ($replaced)
+			{
+				$nr= ' $("'. $attr[ID] .'").innerHTML ';
+
+				$success= true;
+			}
+			else
+			{
+				if ( ($cell == '_') || ($tag == 'th') )
+					goto no_total;
+
+				list($success, $nr, $nr_currency, $nr_curr_set)= $parse_number($searchable_formats, $cell); 
+
+				$attr[TITLE].= ' \''. $cell .'\' '. $nr_currency . ($nr_curr_set ? '(!)' : '') .'';
+				$attr[CLASSES].= ($success && $nr < 0) ? ' negative' : '';
+
+				if ($nr_curr_set)
+					$a_options= array($searchable_formats[0],CURRENCY_DISPLAY);
+			}
 
 			foreach ($a_dimensions as $rowcol => list(, $idx) )
 				if ( isset($total[$rowcol][$idx]) )
 				{
-					list($rowcol_curr_set, $rowcol_currency)= $total_rowcol;
+					//TODO if USD is appended to the end of a cell you will get '234.34 USD' when reading out a variable. Users will need string parsing tools.
 
-					$attr[CLASSES].= ' accu';
-
-					if ($replaced)
-					{
-						//TODO if USD is appended to the end of a cell you will get '234.34 USD' when reading out a variable. Users will need string parsing tools.
-						
-						$nr= ' $("'. $attr[ID] .'").innerHTML ';
-
-						$tag_script.= 't'.$rowcol.'['.$idx.']+= Number('. $nr .'); '.
+					if ($success)
+						$tag_script.= 'if (t'.$rowcol.'['.$idx.'] !== undefined) t'.$rowcol.'['.$idx.']+= Number('. $nr .'); '.
 							'if (isNaN(t'.$rowcol.'['.$idx.'])) t'.$rowcol.'['.$idx.']= undefined; '. "\n";
-
-						//TODO assigning of innerHTML doesn't have to happen twice
-						if ($rowcol_curr_set)
-							$tag_script.= ' $("'. $attr[ID] .'").innerHTML= '. $js_toFixed($nr, array($rowcol_currency,CURRENCY_DISPLAY)) . "\n";
-					}
-
-					elseif ($tag != 'th')
+					else
 					{
-						$searchable_formats= ($rowcol_curr_set) ? array($rowcol_currency) : $selected_formats;
-						list($success, $nr, $nr_currency, $nr_curr_set)= $parse_number($searchable_formats, $cell); 
-
-						$attr[TITLE].= ' \''. $cell .'\' '. $nr_currency . ($nr_curr_set ? '(!)' : '') .'';
-
-
-						if (!$success) // || ($rowcol_curr_set && ($nr_currency != $rowcol_currency)) ) 
-						{
-							$tag_script.= 't'.$rowcol.'['.$idx.']= undefined; '. "\n";
-							$cell= 'ERROR!';
-						}
-						else
-						{
-							$attr[CLASSES].= (($nr < 0) ? ' negative' : '' );
-
-							// if $rowcol_curr_set then $nr_currency==$rowcol_currency
-							//$a_options= ($nr_curr_set || $rowcol_curr_set) ? array($nr_currency,CURRENCY_DISPLAY) : array($selected_formats[0],'');
-							$a_options= ($rowcol_curr_set) ? array($searchable_formats[0],CURRENCY_DISPLAY) : array($searchable_formats[0],'');
-
-							//TODO assigning of innerHTML doesn't have to happen twice
-							$tag_script.= '$("'. $attr[ID] .'").innerHTML= '. $js_toFixed($nr, $a_options) .'; '.
-								'if (t'.$rowcol.'['.$idx.'] !== undefined) t'.$rowcol.'['.$idx.']+= Number('. $nr .'); '. "\n";
-						}
+						$tag_script.= 't'.$rowcol.'['.$idx.']= undefined; '. "\n";
+						$cell= 'ERROR!';
 					}
 				}
 
+			if ($replaced && !$rowcol_curr_set)
+				goto no_total;
+
+			if ($success)
+				$tag_script.= '$("'. $attr[ID] .'").innerHTML= '. $js_toFixed($nr, $a_options) .'; '. "\n";
+
+			no_total:
 		}
 
 		//-------------------------------------------------------------------------------------------------------------
