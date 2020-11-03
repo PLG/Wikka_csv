@@ -560,6 +560,10 @@ $print_javascript= function () use (&$_, &$escaped_css_id_var, &$qualified_var, 
 			return;
 		}
 
+		// preg_replace here, removes duplicates of the same declaration: $var2 and $['var2'] and $['#var-text var2']
+		//
+		$js_line= preg_replace('/\[\'(#'.$ID_TABLE.')?\s*([a-zA-Z_]\w*)\'\]/', '$2', $js_line);
+
 		if (preg_match('/^(?!\s*\/\/|\s*$)/', $js_line))
 			$ARRAY_CODE_LINES[$lnr]= $js_line;
 		else
@@ -570,12 +574,10 @@ $print_javascript= function () use (&$_, &$escaped_css_id_var, &$qualified_var, 
 	$assigned_names= array();
 	foreach ($ARRAY_CODE_LINES as $lnr => $js_line) 
 	{
-		// preg_replace here, removes duplicates of the same declaration: $var2 and $['var2'] and $['#var-text var2']
-		//
 		if (preg_match_all('/'.PATTERN_XL_ID.'|'.PATTERN_SIMPLE_VAR.'|'.PATTERN_TABLE_VAR.'/', $js_line, $a_vars)) 
-			$declared_names= array_merge($declared_names, preg_replace('/\[\'(#'.$ID_TABLE.')?\s*([a-zA-Z_]\w*)\'\]/', '$2', $a_vars[0]));
+			$declared_names= array_merge($declared_names, $a_vars[0]);
 		if (preg_match_all('/('.PATTERN_XL_ID.'|'.PATTERN_SIMPLE_VAR.'|'.PATTERN_TABLE_VAR.')\s*=/', $js_line, $a_vars))
-			$assigned_names= array_merge($assigned_names, preg_replace('/\[\'(#'.$ID_TABLE.')?\s*([a-zA-Z_]\w*)\'\]/', '$2', $a_vars[1]));
+			$assigned_names= array_merge($assigned_names, $a_vars[1]);
 	}
 
 	$declared_names= array_unique($declared_names);
